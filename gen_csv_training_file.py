@@ -2,7 +2,7 @@ import os
 import pandas as pd
 
 current_dir = os.getcwd()
-training_dataset_path = r'.../IRMAS_Training_Data'
+training_dataset_path = r'IRMAS_Training_Data'
 os.chdir(training_dataset_path)
 
 folders = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
