@@ -37,11 +37,10 @@ class AudioUtil:
         return resignal, newsr
 
     @staticmethod
-    def pad_trunc(audio, max_ms):
+    def pad_trunc(audio, max_len):
         signal, sr = audio
         num_rows, signal_len = signal.shape
 
-        max_len = sr // 1000 * max_ms
         if signal_len > max_len:
             signal = signal[:, :max_len]
 
