@@ -63,9 +63,8 @@ class AudioUtil:
         return signal.roll(shift_amt), sr
 
     @staticmethod
-    def generate_spectrogram(audio, n_mels=64, n_fft=1024, hop_len=None):
+    def generate_spectrogram(audio, n_mels=64, n_fft=1024, top_db=105, hop_len=None):
         signal, sr = audio
-        top_db = 80
 
         make_spectrogram = transforms.MelSpectrogram(sr, n_fft=n_fft, hop_length=hop_len, n_mels=n_mels)
         spec = make_spectrogram(signal)
