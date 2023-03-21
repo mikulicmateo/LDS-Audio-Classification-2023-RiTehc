@@ -1,3 +1,4 @@
+*.png
 *.wav
 .ipynb_checkpoints
 .idea

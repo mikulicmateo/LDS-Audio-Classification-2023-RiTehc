@@ -4,27 +4,12 @@ import numpy as np
 from matplotlib import pyplot as plt
 
 working_dir = os.getcwd()
-validation_dataset_path = r'.../IRMAS_Validation_Data/'
+validation_dataset_path = r'/home/dominik/Work/Lumen Datascience/Dataset/IRMAS_Validation_Data/'
 os.chdir(validation_dataset_path)
 
 columns = ['type', 'tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
 data_raw = []
 data_percentages = []
-
-
-class_dict = {
-    "tru": 0,
-    "gac": 0,
-    "sax": 0,
-    "cel": 0,
-    "flu": 0,
-    "gel": 0,
-    "vio": 0,
-    "cla": 0,
-    "pia": 0,
-    "org": 0,
-    "voi": 0
-} 
 
 all_instruments_counter = {
     "tru": 0,
@@ -38,20 +23,20 @@ all_instruments_counter = {
     "pia": 0,
     "org": 0,
     "voi": 0
-}
+} 
 
 specific_instrument_counter = {
-    "tru": class_dict.copy(),
-    "gac": class_dict.copy(),
-    "sax": class_dict.copy(),
-    "cel": class_dict.copy(),
-    "flu": class_dict.copy(),
-    "gel": class_dict.copy(),
-    "vio": class_dict.copy(),
-    "cla": class_dict.copy(),
-    "pia": class_dict.copy(),
-    "org": class_dict.copy(),
-    "voi": class_dict.copy()
+    "tru": all_instruments_counter.copy(),
+    "gac": all_instruments_counter.copy(),
+    "sax": all_instruments_counter.copy(),
+    "cel": all_instruments_counter.copy(),
+    "flu": all_instruments_counter.copy(),
+    "gel": all_instruments_counter.copy(),
+    "vio": all_instruments_counter.copy(),
+    "cla": all_instruments_counter.copy(),
+    "pia": all_instruments_counter.copy(),
+    "org": all_instruments_counter.copy(),
+    "voi": all_instruments_counter.copy()
 }
 
 def create_plot(dictionary, instrument_name):
@@ -61,11 +46,8 @@ def create_plot(dictionary, instrument_name):
 
     for key in dictionary.keys():
         temp_raw.append(dictionary[key])
-        dictionary[key] = np.round(dictionary[key] / sum * 100, decimals=4)
+        dictionary[key] = dictionary[key] / sum
         temp_percentage.append(dictionary[key])
-
-    if dictionary.__contains__(instrument_name):
-            dictionary.__delitem__(instrument_name)
 
     plt.bar(dictionary.keys(), dictionary.values(), width = 0.9)
     plt.savefig('validation_' + instrument_name + '_instruments_count.png')
@@ -77,6 +59,8 @@ def create_plot(dictionary, instrument_name):
 
 files = os.listdir(os.getcwd())
 files.sort()
+
+array = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 for i in range(0, len(files), 2):
     txt_file = files[i]
@@ -90,15 +74,22 @@ for i in range(0, len(files), 2):
 
     with open(txt_file) as f:
         instruments = f.readlines()
+        array[len(instruments)-1] += 1
         for instrument in instruments:
-            all_instruments_counter.update({instrument[0:3]: (all_instruments_counter.get(instrument[0:3]) + 1)})
+            instrument_name = str(instrument[0:3])
+            all_instruments_counter[instrument_name] += 1
 
             for nested_instrument in instruments:
-                if instrument == nested_instrument:
-                    continue
-                specific_instrument_counter[instrument[0:3]][nested_instrument[0:3]] += 1
+                nested_instrument_name = nested_instrument[0:3]
+                if len(instruments) == 1:
+                    specific_instrument_counter[instrument_name][nested_instrument_name] += 1
+                else:
+                    if instrument == nested_instrument:
+                        continue
+                    specific_instrument_counter[instrument_name][nested_instrument_name] += 1
     
 
+print(array / np.sum(array))
 
 os.chdir(os.path.join(working_dir, 'IRMAS_Validation_Data'))
 if not os.path.exists(os.path.join(working_dir, 'IRMAS_Validation_Data/Plots')):
