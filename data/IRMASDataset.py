@@ -12,7 +12,8 @@ sys.path.insert(0, '../utils/')
 
 class IRMASDataset(Dataset):
 
-    def __init__(self, annotations_file, project_dir, new_samplerate, new_channels, max_num_samples, shift_limit, n_mels,
+    def __init__(self, annotations_file, project_dir, new_samplerate, new_channels, max_num_samples, shift_limit,
+                 n_mels,
                  n_fft, mask_percent, n_freq_masks, n_time_masks, max_mixes, db_max, hop_len=None):
         self.annotations = pd.read_csv(annotations_file)
         self.project_dir = project_dir
@@ -63,7 +64,6 @@ class IRMASDataset(Dataset):
     def _get_audio_sample_label(self, index):
         return self.annotations.iloc[index, 2:13]
 
-
     def _get_mixed_audios(self, audio_sample_paths):
         k = 0
         audio = torchaudio.load(audio_sample_paths[0], normalize=True)
@@ -80,18 +80,18 @@ class IRMASDataset(Dataset):
 if __name__ == "__main__":
     ANNOTATIONS_FILE = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Training_Data/training_annotation_file.csv'
     PROJECT_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
-    NEW_SAMPLERATE = 44100 # TODO
+    NEW_SAMPLERATE = 44100  # TODO
     NEW_CHANNELS = 1
-    MAX_NUM_SAMPLES = 132300 # TODO
+    MAX_NUM_SAMPLES = 132300  # TODO
     SHIFT_PERCENT = 0.1
-    N_MELS = 64
+    N_MELS = 82  # height of spec
     N_FFT = 1024
     MAX_MASK_PERCENT = 0.1
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
     MAX_DECIBEL = 105
-    HOP_LEN = None
+    HOP_LEN = None  # width of spec = Total number of samples / hop_length
 
     # TODO
     # if torch.cuda.is_available():
@@ -120,10 +120,15 @@ if __name__ == "__main__":
 
     print(f'There are {len(ds)} samples')
     signal, label = ds[0]
+    class_names = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
 
     import matplotlib.pyplot as plt
+    import numpy as np
 
+    indexes = np.where(np.array(label) == 1)[0]
+    title = [class_names[i] for i in indexes]
     plt.imshow(signal[0])
+    plt.title(title)
     plt.show()
     # plt.imshow(signal[1])
     # plt.show()

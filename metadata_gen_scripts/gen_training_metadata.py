@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 
-working_dir = os.getcwd()
-training_dataset_path = r'.../IRMAS_Training_Data/'
+working_dir = os.path.dirname(os.getcwd())
+training_dataset_path = r'../IRMAS_Validation_Data/'
 os.chdir(training_dataset_path)
 
 folders = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']

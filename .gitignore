@@ -1,5 +1,6 @@
 *.png
 *.wav
+*.txt
 .ipynb_checkpoints
 .idea
 .env

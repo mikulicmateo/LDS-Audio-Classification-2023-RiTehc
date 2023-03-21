@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 
-working_dir = os.getcwd()
-validation_dataset_path = r'/home/dominik/Work/Lumen Datascience/Dataset/IRMAS_Validation_Data/'
+working_dir = os.path.dirname(os.getcwd())
+validation_dataset_path = r'../IRMAS_Validation_Data/'
 os.chdir(validation_dataset_path)
 
 columns = ['type', 'tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
@@ -39,6 +39,20 @@ specific_instrument_counter = {
     "voi": all_instruments_counter.copy()
 }
 
+instrument_mix_counter = {
+    "tru": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "gac": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "sax": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "cel": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "flu": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "gel": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "vio": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "cla": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "pia": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "org": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    "voi": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+}
+
 def create_plot(dictionary, instrument_name):
     sum = np.sum(list(dictionary.values()))
     temp_raw = [instrument_name]
@@ -62,7 +76,7 @@ files.sort()
 
 array = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
-for i in range(0, len(files), 2):
+for i in range(0, len(files)-1, 2):
     txt_file = files[i]
     wav_file = files[i+1]
 
@@ -74,22 +88,25 @@ for i in range(0, len(files), 2):
 
     with open(txt_file) as f:
         instruments = f.readlines()
-        array[len(instruments)-1] += 1
+        num_of_instruments = len(instruments)
+
+        array[num_of_instruments - 1] += 1
         for instrument in instruments:
-            instrument_name = str(instrument[0:3])
+            instrument_name = instrument.strip()
+            instrument_mix_counter[instrument_name][num_of_instruments - 1] += 1
             all_instruments_counter[instrument_name] += 1
 
-            for nested_instrument in instruments:
-                nested_instrument_name = nested_instrument[0:3]
+            for companion_instrument in instruments:
+                companion_instrument_name = companion_instrument.strip()
                 if len(instruments) == 1:
-                    specific_instrument_counter[instrument_name][nested_instrument_name] += 1
+                    specific_instrument_counter[instrument_name][companion_instrument_name] += 1
                 else:
-                    if instrument == nested_instrument:
+                    if instrument == companion_instrument:
                         continue
-                    specific_instrument_counter[instrument_name][nested_instrument_name] += 1
+                    specific_instrument_counter[instrument_name][companion_instrument_name] += 1
     
 
-print(array / np.sum(array))
+print(instrument_mix_counter['tru']/np.sum(instrument_mix_counter['tru']))
 
 os.chdir(os.path.join(working_dir, 'IRMAS_Validation_Data'))
 if not os.path.exists(os.path.join(working_dir, 'IRMAS_Validation_Data/Plots')):
