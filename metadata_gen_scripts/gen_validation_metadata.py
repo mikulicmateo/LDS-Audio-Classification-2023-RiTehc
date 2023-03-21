@@ -53,6 +53,77 @@ instrument_mix_counter = {
     "voi": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 }
 
+solo_instrument_counter = {
+    "tru": 0,
+    "gac": 0,
+    "sax": 0,
+    "cel": 0,
+    "flu": 0,
+    "gel": 0,
+    "vio": 0,
+    "cla": 0,
+    "pia": 0,
+    "org": 0,
+    "voi": 0
+}
+
+two_instrument_counter = {
+    "tru": all_instruments_counter.copy(),
+    "gac": all_instruments_counter.copy(),
+    "sax": all_instruments_counter.copy(),
+    "cel": all_instruments_counter.copy(),
+    "flu": all_instruments_counter.copy(),
+    "gel": all_instruments_counter.copy(),
+    "vio": all_instruments_counter.copy(),
+    "cla": all_instruments_counter.copy(),
+    "pia": all_instruments_counter.copy(),
+    "org": all_instruments_counter.copy(),
+    "voi": all_instruments_counter.copy()
+}
+
+three_instrument_counter = {
+    "tru": all_instruments_counter.copy(),
+    "gac": all_instruments_counter.copy(),
+    "sax": all_instruments_counter.copy(),
+    "cel": all_instruments_counter.copy(),
+    "flu": all_instruments_counter.copy(),
+    "gel": all_instruments_counter.copy(),
+    "vio": all_instruments_counter.copy(),
+    "cla": all_instruments_counter.copy(),
+    "pia": all_instruments_counter.copy(),
+    "org": all_instruments_counter.copy(),
+    "voi": all_instruments_counter.copy()
+}
+
+
+four_instrument_counter = {
+    "tru": all_instruments_counter.copy(),
+    "gac": all_instruments_counter.copy(),
+    "sax": all_instruments_counter.copy(),
+    "cel": all_instruments_counter.copy(),
+    "flu": all_instruments_counter.copy(),
+    "gel": all_instruments_counter.copy(),
+    "vio": all_instruments_counter.copy(),
+    "cla": all_instruments_counter.copy(),
+    "pia": all_instruments_counter.copy(),
+    "org": all_instruments_counter.copy(),
+    "voi": all_instruments_counter.copy()
+}
+
+five_instrument_counter = {
+    "tru": all_instruments_counter.copy(),
+    "gac": all_instruments_counter.copy(),
+    "sax": all_instruments_counter.copy(),
+    "cel": all_instruments_counter.copy(),
+    "flu": all_instruments_counter.copy(),
+    "gel": all_instruments_counter.copy(),
+    "vio": all_instruments_counter.copy(),
+    "cla": all_instruments_counter.copy(),
+    "pia": all_instruments_counter.copy(),
+    "org": all_instruments_counter.copy(),
+    "voi": all_instruments_counter.copy()
+}
+
 def create_plot(dictionary, instrument_name):
     sum = np.sum(list(dictionary.values()))
     temp_raw = [instrument_name]
@@ -83,7 +154,7 @@ for i in range(0, len(files)-1, 2):
     if not(wav_file.__contains__(txt_file[: len(txt_file) - 4])):
         print(wav_file)
         print(txt_file)
-        print("Error: Adjecent files not the same!")
+        print("Error: Adjacent files not the same!")
         break
 
     with open(txt_file) as f:
@@ -93,19 +164,31 @@ for i in range(0, len(files)-1, 2):
         array[num_of_instruments - 1] += 1
         for instrument in instruments:
             instrument_name = instrument.strip()
+
             instrument_mix_counter[instrument_name][num_of_instruments - 1] += 1
             all_instruments_counter[instrument_name] += 1
 
             for companion_instrument in instruments:
                 companion_instrument_name = companion_instrument.strip()
                 if len(instruments) == 1:
+                    solo_instrument_counter[instrument_name] += 1
                     specific_instrument_counter[instrument_name][companion_instrument_name] += 1
                 else:
                     if instrument == companion_instrument:
                         continue
+
+                    if num_of_instruments == 2:
+                        two_instrument_counter[instrument_name][companion_instrument_name] += 1
+                    elif num_of_instruments == 3:
+                        three_instrument_counter[instrument_name][companion_instrument_name] += 1
+                    elif num_of_instruments == 4:
+                        four_instrument_counter[instrument_name][companion_instrument_name] += 1
+                    elif num_of_instruments == 5:
+                        five_instrument_counter[instrument_name][companion_instrument_name] += 1
+
                     specific_instrument_counter[instrument_name][companion_instrument_name] += 1
     
-
+# print(four_instrument_counter['tru']/)
 print(instrument_mix_counter['tru']/np.sum(instrument_mix_counter['tru']))
 
 os.chdir(os.path.join(working_dir, 'IRMAS_Validation_Data'))
