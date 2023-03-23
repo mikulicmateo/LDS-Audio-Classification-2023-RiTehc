@@ -3,8 +3,8 @@ import pandas as pd
 import numpy as np
 from matplotlib import pyplot as plt
 
-working_dir = os.getcwd()
-validation_dataset_path = r'/home/dominik/Work/Lumen Datascience/Dataset/IRMAS_Validation_Data/'
+working_dir = os.path.dirname(os.getcwd())
+validation_dataset_path = r'/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/'
 os.chdir(validation_dataset_path)
 
 columns = ['type', 'num_of_instruments', 'tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
