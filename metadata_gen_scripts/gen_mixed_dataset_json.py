@@ -124,25 +124,32 @@ for instrument in instruments:
 # Logic
 #--------------
 samples_amount = 100_000
+num_of_val_files = 2874
+num_of_val_instruments = 4917
+mixed_dataset_instrument_amount = num_of_val_instruments/num_of_val_files * samples_amount
 total_instrument_count = []
 
 data_bag = DataBag(DEFAULT_TRAIN_ANNOTATION_FILE)
 
 for instrument_percentage in all_instruments_percentage:
     #add 1 to samples because of rounding error
-    total_instrument_count.append(int(np.round((samples_amount+1) * instrument_percentage)))
+    total_instrument_count.append(int(np.round((mixed_dataset_instrument_amount+1) * instrument_percentage)))
 
 r_original_count = total_instrument_count.copy()
 r_generated_instrument_counter = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
+samples_count = 0
 mixed_dataset_samples = {
     'samples': []
 }
-while np.sum(total_instrument_count) >= 0:
+
+#while np.sum(total_instrument_count) >= 0:
+while samples_count < samples_amount:
     dataset_sample = {
         'label': all_instruments_counter.copy(),
         'paths': []
     }
+    samples_count += 1
 
     instrument_index = np.random.choice(np.arange(11), p=all_instruments_percentage)
     instrument = instruments[instrument_index]
@@ -174,6 +181,9 @@ while np.sum(total_instrument_count) >= 0:
         dataset_sample['paths'].append(data_bag.get_bag_item(companion_instrument))
         dataset_sample['label'][companion_instrument] = 1
 
+        total_instrument_count[companion_instrument_index] -= 1
+        r_generated_instrument_counter[companion_instrument_index] += 1
+
         r_specific_instrument_counter[instrument][num_of_companion_instruments][companion_instrument] += 1
         companion_instruments.append(companion_instrument)
 
@@ -184,14 +194,15 @@ dataset_json = json.dumps(mixed_dataset_samples, indent=4)
 
 # Writing to sample.json
 with open("MIXED_Training_Data/generated_dataset.json", "w") as outfile:
-    outfile.write(dataset_json)
+   outfile.write(dataset_json)
 
 #--------------
 # Results
 #--------------
 print(f'generated instruments: {r_generated_instrument_counter}')
 print(f'validation dataset count: {r_original_count}')
-print(f'total samples generated: {np.sum(r_generated_instrument_counter)}')
+print(f'total instruments generated: {np.sum(r_generated_instrument_counter)}')
+print(f'total samples generated: {samples_count}')
 
 #Uncomment if you want to save plots
 # save_folder_path = r'/home/mateo/Desktop/Plots/'
