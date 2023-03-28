@@ -56,10 +56,10 @@ class MIXEDDataset(Dataset):
 if __name__ == "__main__":
     ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 44100  # TODO
-    NEW_CHANNELS = 2
+    NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 132300  # TODO
     SHIFT_PERCENT = 0.1
-    N_MELS = 82  # height of spec
+    N_MELS = 64  # height of spec
     N_FFT = 1024
     MAX_MASK_PERCENT = 0.1
     N_FREQ_MASKS = 2
@@ -93,12 +93,12 @@ if __name__ == "__main__":
 
     indexes = np.where(np.array(label) == 1)[0]
     title = [class_names[i] for i in indexes]
-    print(signal)
+    print(signal.shape)
     print(title)
-    plt.imshow(signal[0])
-    plt.title(title)
-    plt.show()
-    plt.imshow(signal[1])
+
+    plt.imsave('dada.png', signal[0])
+
+    plt.imshow(signal)
     plt.title(title)
     plt.show()
 
