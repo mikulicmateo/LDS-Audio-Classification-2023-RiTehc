@@ -3,7 +3,9 @@ import torchaudio
 import os
 import glob
 import json
+import sys
 
+sys.path.insert(0, '../utils/')
 from utils.AudioUtil import AudioUtil
 
 
@@ -34,14 +36,13 @@ class MIXEDDataset(Dataset):
         path = self._get_audio_sample_path(index)
         label = self._get_audio_sample_label(index)
         audio = torchaudio.load(path, normalize=True)
-        # resampled = AudioUtil.resample(audio, self.new_samplerate)
-        rechanneled = AudioUtil.rechannel(audio, self.new_channels)
-        resized = AudioUtil.pad_trunc(rechanneled, self.max_num_samples)
-        reshifted = AudioUtil.time_shift(resized, self.shift_limit)
-        spectrogram = AudioUtil.generate_spectrogram(reshifted, self.n_mels, self.n_fft, self.top_db, self.hop_len)
-        augmented_spectrogram = AudioUtil.spectrogram_augment(spectrogram, self.mask_percent, self.n_freq_masks,
-                                                              self.n_time_masks)
-        return augmented_spectrogram, label
+        resampled = AudioUtil.resample(audio, self.new_samplerate)
+        # rechanneled = AudioUtil.rechannel(audio, self.new_channels)
+        # resized = AudioUtil.pad_trunc(rechanneled, self.max_num_samples)
+        # reshifted = AudioUtil.time_shift(resized, self.shift_limit)
+        spectrogram = AudioUtil.generate_spectrogram(resampled, self.n_mels, self.n_fft, self.top_db, self.hop_len)
+        #augmented_spectrogram = AudioUtil.spectrogram_augment(spectrogram, self.mask_percent, self.n_freq_masks, self.n_time_masks)
+        return spectrogram, label
 
     def _get_audio_sample_path(self, index):
         return os.path.join(self.data_folder, str(index), str(index) + ".wav")
@@ -55,9 +56,9 @@ class MIXEDDataset(Dataset):
 
 if __name__ == "__main__":
     ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
-    NEW_SAMPLERATE = 44100  # TODO
+    NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
-    MAX_NUM_SAMPLES = 132300  # TODO
+    MAX_NUM_SAMPLES = 66150  # TODO
     SHIFT_PERCENT = 0.1
     N_MELS = 64  # height of spec
     N_FFT = 1024
@@ -96,9 +97,9 @@ if __name__ == "__main__":
     print(signal.shape)
     print(title)
 
-    plt.imsave('dada.png', signal[0])
+    #plt.imsave('dada.png', signal[0])
 
-    plt.imshow(signal)
+    plt.imshow(signal[0])
     plt.title(title)
     plt.show()
 
