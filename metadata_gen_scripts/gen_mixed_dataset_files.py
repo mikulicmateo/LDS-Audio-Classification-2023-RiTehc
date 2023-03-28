@@ -4,8 +4,8 @@ import librosa as lr
 import soundfile as sf
 
 WORKING_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
-DATASET_DESCRIPTION_FILE_JSON = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/metadata_gen_scripts/sample.json'
-DATASET_DESTINATION_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data'
+DATASET_DESCRIPTION_FILE_JSON = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data/generated_dataset.json'
+DATASET_DESTINATION_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
 
 
 def _get_mixed_audios(paths):
