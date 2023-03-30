@@ -13,9 +13,9 @@ class Decoder(nn.Module):
             nn.Linear(128, 128 * 60 * 126),
             nn.LeakyReLU(True)
         )
-        self.unflatten = nn.Unflatten(dim=1,
-                                      unflattened_size=(128, 60, 126))
+
         self.decoder_conv = nn.Sequential(
+            nn.Unflatten(dim=1, unflattened_size=(128, 60, 126)),
             # nn.ConvTranspose2d(1024, 512, 3, stride=1, padding=padding),
             # nn.LeakyReLU(True),
             # nn.MaxUnpool2d(2),
@@ -33,13 +33,13 @@ class Decoder(nn.Module):
         )
 
     def forward(self, x):
-        print('first ', x.shape)
+        #print('first ', x.shape)
         x = self.decoder_lin(x)
-        print('out of declin', x.shape)
-        x = self.unflatten(x)
-        print('out of unf', x.shape)
+        #print('out of declin', x.shape)
+        #x = self.unflatten(x)
+        #print('out of unf', x.shape)
         x = self.decoder_conv(x)
-        print('out of deccnn', x.shape)
+        #print('out of deccnn', x.shape)
         x = torch.sigmoid(x)
-        print('out of sigm', x.shape)
+        #print('out of sigm', x.shape)
         return x

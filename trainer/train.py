@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 import torch
 import numpy as np
@@ -22,11 +23,10 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
 
     for image_batch, _ in dataloader:
         image_batch = image_batch.to(device)
-        print(image_batch.shape)
+
         encoded_data = encoder(image_batch)
-
-
         decoded_data = decoder(encoded_data)
+
         loss = loss_fn(decoded_data, image_batch)
 
         optimizer.zero_grad()
@@ -56,9 +56,9 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    BATCH_SIZE = 1
+    BATCH_SIZE = 5
     EPOCHS = 1
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
@@ -87,6 +87,7 @@ if __name__ == "__main__":
         MAX_DECIBEL,
         HOP_LEN
     )
+
     train_data_loader = create_data_loader(ds, BATCH_SIZE)
     encoder = Encoder(4, 0)
     decoder = Decoder(4, 0)
@@ -102,3 +103,5 @@ if __name__ == "__main__":
 
     optim = torch.optim.Adam(params_to_optimize, lr=lr, weight_decay=1e-05)
     train(encoder,decoder,train_data_loader, loss_fn, optim, device, EPOCHS)
+    torch.save(encoder.state_dict(), "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/model/encoder.pt")
+    torch.save(decoder.state_dict(), "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/model/decoder.pt")

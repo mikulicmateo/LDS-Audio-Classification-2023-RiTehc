@@ -23,9 +23,8 @@ class Encoder(nn.Module):
             # nn.LeakyReLU(inplace=True)
         )
 
-        self.flatten = nn.Flatten(start_dim=1)
-
         self.encoder_lin = nn.Sequential(
+            nn.Flatten(),
             nn.Linear(128 * 60 * 126, 128),#128 * 60 * 255, 128),
             nn.LeakyReLU(inplace=True),
             nn.Linear(128, encoded_space_dim)
@@ -33,9 +32,9 @@ class Encoder(nn.Module):
 
     def forward(self, x):
         x = self.encoder_cnn(x)
-        print('out of enccnn',x.shape)
-        x = self.flatten(x)
-        print('after flatten', x.shape)
+        #print('out of enccnn',x.shape)
+        #x = self.flatten(x)
+        #print('after flatten', x.shape)
         x = self.encoder_lin(x)
-        print('after enclin', x.shape)
+        #print('after enclin', x.shape)
         return x
