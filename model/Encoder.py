@@ -3,38 +3,24 @@ from torch import nn
 
 class Encoder(nn.Module):
 
-    def __init__(self, encoded_space_dim, padding):
+    def __init__(self):
         super().__init__()
 
         self.encoder_cnn = nn.Sequential(
-            nn.Conv2d(1, 64, 3, stride=1, padding=padding),
-            nn.LeakyReLU(inplace=True),
-            # nn.MaxPool2d(2, return_indices=True),
-            nn.Conv2d(64, 128, 3, stride=1, padding=padding),
-            nn.LeakyReLU(inplace=True),
-            # nn.MaxPool2d(2),
-            # nn.Conv2d(128, 256, 3, stride=1, padding=padding),
-            # nn.LeakyReLU(inplace=True),
-            # nn.MaxPool2d(2),
-            # nn.Conv2d(256, 512, 3, stride=1, padding=padding),
-            # nn.LeakyReLU(inplace=True),
-            # nn.MaxPool2d(2),
-            # nn.Conv2d(512, 1024, 3, stride=1, padding=padding),
-            # nn.LeakyReLU(inplace=True)
-        )
-
-        self.encoder_lin = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(128 * 60 * 126, 128),#128 * 60 * 255, 128),
-            nn.LeakyReLU(inplace=True),
-            nn.Linear(128, encoded_space_dim)
+            nn.Conv2d(1, 32, kernel_size=3, stride=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 128, kernel_size=3, stride=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 256, kernel_size=3, stride=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2),
         )
 
     def forward(self, x):
         x = self.encoder_cnn(x)
-        #print('out of enccnn',x.shape)
-        #x = self.flatten(x)
-        #print('after flatten', x.shape)
-        x = self.encoder_lin(x)
-        #print('after enclin', x.shape)
         return x
