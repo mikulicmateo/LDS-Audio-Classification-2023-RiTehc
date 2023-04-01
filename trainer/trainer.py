@@ -29,9 +29,8 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
 
             image_batch = image_batch.to(device)
 
-            encoded_data = encoder(image_batch)
-
-            decoded_data = decoder(encoded_data)
+            encoded_data, indices_first, indices_second = encoder(image_batch)
+            decoded_data = decoder(encoded_data, indices_first, indices_second)
 
             out.append(decoded_data.cpu())
             label.append(image_batch.cpu())
@@ -53,8 +52,8 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
     for image_batch, _ in loop:
         image_batch = image_batch.to(device)
 
-        encoded_data = encoder(image_batch)
-        decoded_data = decoder(encoded_data)
+        encoded_data, indices_first, indices_second = encoder(image_batch)
+        decoded_data = decoder(encoded_data, indices_first, indices_second)
 
         loss = loss_fn(decoded_data, image_batch)
 
@@ -65,7 +64,6 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
 
         # print('\t partial train loss (single batch): %f' % loss.data)
         train_loss.append(loss.detach().cpu().numpy())
-        break
 
     return np.mean(train_loss)
 
@@ -91,16 +89,16 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    BATCH_SIZE = 40
-    EPOCHS = 1
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    BATCH_SIZE = 225
+    EPOCHS = 2
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
     SHIFT_PERCENT = 0.1
     N_MELS = 64  # height of spec
     N_FFT = 1024
-    MAX_MASK_PERCENT = 0.1
+    MAX_MASK_PERCENT = 0.01
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
@@ -123,8 +121,8 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    ANNOTATIONS_FILE = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
-    PROJECT_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
+    ANNOTATIONS_FILE = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
+    PROJECT_DIR = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc'
 
     vds = IRMASValidationDataset(
         ANNOTATIONS_FILE,
@@ -138,7 +136,7 @@ if __name__ == "__main__":
     encoder.to(device)
     decoder.to(device)
     loss_fn = torch.nn.MSELoss()
-    lr = 0.001
+    lr = 0.1
 
     params_to_optimize = [
         {'params': encoder.parameters()},
