@@ -16,8 +16,8 @@ def create_data_loader(train_data, batch_size):
 def get_model_for_eval():
     encoder = Encoder()
     decoder = Decoder()
-    encoder.load_state_dict(torch.load("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/encoderC.pt"))
-    decoder.load_state_dict(torch.load("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/decoderC.pt"))
+    encoder.load_state_dict(torch.load("/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/encoderC-final.pt"))
+    decoder.load_state_dict(torch.load("/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/decoderC-final.pt"))
 
     return encoder, decoder
 
@@ -33,16 +33,18 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
 
             image_batch = image_batch.to(device)
 
-            encoded_data = encoder(image_batch)
+            encoded_data, indices_first, indices_second = encoder(image_batch)
 
-            decoded_data = decoder(encoded_data)
+            decoded_data = decoder(encoded_data, indices_first, indices_second)
             for i in range(len(decoded_data)):
                 plt.imshow(image_batch[i][0].cpu().detach().numpy())
                 plt.show()
                 plt.imshow(encoded_data[i][0].cpu().detach().numpy())
                 plt.show()
+                print(encoded_data[i][0].cpu().detach().numpy())
                 plt.imshow(decoded_data[i][0].cpu().detach().numpy())
                 plt.show()
+
             out.append(decoded_data.cpu())
             label.append(image_batch.cpu())
             break
@@ -62,15 +64,15 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    ANNOTATIONS_FILE = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
-    PROJECT_DIR = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc'
+    ANNOTATIONS_FILE = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
+    PROJECT_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
 
     vds = IRMASValidationDataset(
         ANNOTATIONS_FILE,
         PROJECT_DIR,
     )
 
-    BATCH_SIZE = 250
+    BATCH_SIZE = 100
     val_data_loader = create_data_loader(vds, BATCH_SIZE)
     loss_fn = torch.nn.MSELoss()
     encoder, decoder = get_model_for_eval()

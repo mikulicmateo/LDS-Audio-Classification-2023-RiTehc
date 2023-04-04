@@ -98,6 +98,8 @@ if __name__ == "__main__":
     print(title)
 
     #plt.imsave('dada.png', signal[0])
+    print(min(signal[0]))
+    print(max(signal[0]))
 
     plt.imshow(signal[0])
     plt.title(title)

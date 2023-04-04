@@ -22,7 +22,7 @@ class Decoder(nn.Module):
             nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1),
             nn.LeakyReLU(0.2),
             nn.ConvTranspose2d(32, 1, kernel_size=3, stride=1),
-            nn.Tanh()
+            nn.LeakyReLU(0.2)
         )
 
     def forward(self, x, indices_first, indices_second):

@@ -70,14 +70,29 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
 
 def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs):
     print('Going training!')
-    losses = {'train_loss': [], 'val_loss': []}
+    #losses = {'train_loss': [], 'val_loss': []}
     for i in range(epochs):
         print(f"Epoch {i + 1}")
-        train_loss = train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)
-        val_loss = val_epoch(encoder, decoder, device, val_loader, loss_fn)
-        print('\n EPOCH {}/{} \t train loss {} \t val loss {}'.format(i + 1, epochs, train_loss, val_loss))
-        losses['train_loss'].append(train_loss)
-        losses['val_loss'].append(val_loss)
+        print(f'\n EPOCH {i + 1}/{epochs}')
+        print(f'\t train loss {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)} \t')
+        #print(f'val loss {val_epoch(encoder, decoder, device, val_loader, loss_fn)}')
+        # losses['train_loss'].append(train_loss)
+        # losses['val_loss'].append(val_loss)
+        print("---------------------------")
+        torch.save(encoder.state_dict(), "encoderC" + str(i+1) + ".pt")
+        torch.save(decoder.state_dict(), "decoderC" + str(i+1) + ".pt")
+    print("Finished training")
+
+def validate(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs):
+    print('Going training!')
+    # losses = {'train_loss': [], 'val_loss': []}
+    for i in range(epochs):
+        print(f"Epoch {i + 1}")
+        print(f'\n EPOCH {i + 1}/{epochs}')
+        #print(f'\t train loss {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)} \t')
+        print(f'val loss {val_epoch(encoder, decoder, device, val_loader, loss_fn)}')
+        # losses['train_loss'].append(train_loss)
+        # losses['val_loss'].append(val_loss)
         print("---------------------------")
     print("Finished training")
 
@@ -89,16 +104,16 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    BATCH_SIZE = 225
-    EPOCHS = 2
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    BATCH_SIZE = 100
+    EPOCHS = 16
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
     SHIFT_PERCENT = 0.1
     N_MELS = 64  # height of spec
     N_FFT = 1024
-    MAX_MASK_PERCENT = 0.01
+    MAX_MASK_PERCENT = 0.1
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
@@ -121,8 +136,8 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    ANNOTATIONS_FILE = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
-    PROJECT_DIR = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc'
+    ANNOTATIONS_FILE = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
+    PROJECT_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
 
     vds = IRMASValidationDataset(
         ANNOTATIONS_FILE,
@@ -136,7 +151,7 @@ if __name__ == "__main__":
     encoder.to(device)
     decoder.to(device)
     loss_fn = torch.nn.MSELoss()
-    lr = 0.1
+    lr = 0.0001
 
     params_to_optimize = [
         {'params': encoder.parameters()},
@@ -145,5 +160,7 @@ if __name__ == "__main__":
 
     optim = torch.optim.Adam(params_to_optimize, lr=lr, weight_decay=1e-05)
     train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS)
-    torch.save(encoder.state_dict(), "encoderC.pt")
-    torch.save(decoder.state_dict(), "decoderC.pt")
+    torch.save(encoder.state_dict(), "encoderC-final.pt")
+    torch.save(decoder.state_dict(), "decoderC-final.pt")
+
+    validate(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS)
