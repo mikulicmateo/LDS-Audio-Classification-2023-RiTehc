@@ -52,8 +52,8 @@ class WINDOWEDValidationDataset(Dataset):
 
         return spectrogram
     def _get_window_folder_and_num_windows(self, index):
-        folder = self.folder_file_mapping.iloc[index][0]
-        num_windows = self.folder_file_mapping.iloc[index][1]
+        folder = self.folder_file_mapping.iloc[index][1]
+        num_windows = self.folder_file_mapping.iloc[index][2]
         return folder, num_windows
 
     def _get_audio_common_label(self, folder_index):
