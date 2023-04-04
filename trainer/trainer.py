@@ -33,27 +33,36 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
             decoded_data = decoder(encoded_data, indices_first, indices_second)
 
             out.append(decoded_data.cpu())
+            #with open("validation_loss.txt", "w") as f:
+            #    f.write(f"{decoded_data.cpu().numpy()}\n")
             label.append(image_batch.cpu())
+            break
 
+        #with open("validation_loss.txt") as f:
+        #    for line in f.readlines():
+        #       out.append(float(line.strip()))
+
+        #print(label)
         out = torch.cat(out)
         label = torch.cat(label)
         # Evaluate global loss
         val_loss = loss_fn(out, label)
 
-    return val_loss.data
+    return val_loss
 
 
 def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
     encoder.train()
     decoder.train()
     train_loss = []
+    f = open("training_loss.txt", "w")
 
     loop = tqdm(dataloader, leave=False)
     for image_batch, _ in loop:
         image_batch = image_batch.to(device)
 
-        encoded_data, indices_first, indices_second = encoder(image_batch)
-        decoded_data = decoder(encoded_data, indices_first, indices_second)
+        encoded_data = encoder(image_batch)
+        decoded_data = decoder(encoded_data)
 
         loss = loss_fn(decoded_data, image_batch)
 
@@ -63,37 +72,29 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
         loop.set_postfix(loss=loss.item())
 
         # print('\t partial train loss (single batch): %f' % loss.data)
-        train_loss.append(loss.detach().cpu().numpy())
+        f.write(f"{loss.detach().cpu().numpy()}\n")
+
+    f.close()
+
+    with open("training_loss.txt") as f:
+        for line in f.readlines():
+            train_loss.append(float(line.strip()))
 
     return np.mean(train_loss)
 
 
 def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs):
     print('Going training!')
-    #losses = {'train_loss': [], 'val_loss': []}
+    losses = {'train_loss': [], 'val_loss': []}
     for i in range(epochs):
         print(f"Epoch {i + 1}")
-        print(f'\n EPOCH {i + 1}/{epochs}')
-        print(f'\t train loss {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)} \t')
-        #print(f'val loss {val_epoch(encoder, decoder, device, val_loader, loss_fn)}')
-        # losses['train_loss'].append(train_loss)
-        # losses['val_loss'].append(val_loss)
+        print(f"Train Loss: {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)}")
+        torch.save(encoder.state_dict(), f"encoder{i+1}.pt")
+        torch.save(decoder.state_dict(), f"decoder{i+1}.pt")
+        #losses['train_loss'].append(train_loss)
+        #losses['val_loss'].append(val_loss)
         print("---------------------------")
-        torch.save(encoder.state_dict(), "encoderC" + str(i+1) + ".pt")
-        torch.save(decoder.state_dict(), "decoderC" + str(i+1) + ".pt")
-    print("Finished training")
-
-def validate(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs):
-    print('Going training!')
-    # losses = {'train_loss': [], 'val_loss': []}
-    for i in range(epochs):
-        print(f"Epoch {i + 1}")
-        print(f'\n EPOCH {i + 1}/{epochs}')
-        #print(f'\t train loss {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)} \t')
-        print(f'val loss {val_epoch(encoder, decoder, device, val_loader, loss_fn)}')
-        # losses['train_loss'].append(train_loss)
-        # losses['val_loss'].append(val_loss)
-        print("---------------------------")
+    #print(f"Validation Loss: {val_epoch(encoder, decoder, device, val_loader, loss_fn)}")
     print("Finished training")
 
 
@@ -118,7 +119,7 @@ if __name__ == "__main__":
     N_TIME_MASKS = 2
     MAX_MIXES = 5
     MAX_DECIBEL = 105
-    HOP_LEN = None  # width of spec = Total number of samples / hop_length
+    HOP_LEN = 517  # width of spec = Total number of samples / hop_length
 
     ds = MIXEDDataset(
         ABSOLUTE_PATH_DATA_FOLDER,
@@ -158,9 +159,5 @@ if __name__ == "__main__":
         {'params': decoder.parameters()}
     ]
 
-    optim = torch.optim.Adam(params_to_optimize, lr=lr, weight_decay=1e-05)
+    optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
     train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS)
-    torch.save(encoder.state_dict(), "encoderC-final.pt")
-    torch.save(decoder.state_dict(), "decoderC-final.pt")
-
-    validate(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS)

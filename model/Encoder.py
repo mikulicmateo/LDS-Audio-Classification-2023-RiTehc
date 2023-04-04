@@ -13,7 +13,7 @@ class Encoder(nn.Module):
             nn.LeakyReLU(0.2),
         )
 
-        self.encoder_max_pool = nn.MaxPool2d(2, return_indices=True)
+        self.encoder_max_pool = nn.MaxPool2d(2)
 
         self.encoder_normalise = nn.BatchNorm2d(64)
 
@@ -24,11 +24,19 @@ class Encoder(nn.Module):
             nn.LeakyReLU(0.2),
         )
 
+        self.encoder_b3 = nn.Sequential(
+            nn.Conv2d(256, 512, kernel_size=3, stride=1),
+            nn.LeakyReLU(0.2),
+        )
+
     def forward(self, x):
         x = self.encoder_b1(x)
-        x, indices_first = self.encoder_max_pool(x)
+        x = self.encoder_max_pool(x)
+
         x = self.encoder_normalise(x)
         x = self.encoder_b2(x)
-        x, indices_second = self.encoder_max_pool(x)
+        x = self.encoder_max_pool(x)
 
-        return x, indices_first, indices_second
+        x = self.encoder_b3(x)
+
+        return x
