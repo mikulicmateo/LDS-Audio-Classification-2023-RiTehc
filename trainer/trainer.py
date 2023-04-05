@@ -1,3 +1,4 @@
+import datetime
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 import torch
@@ -14,10 +15,36 @@ from model.Encoder import Encoder
 from model.Decoder import Decoder
 
 
-def create_data_loader(train_data, batch_size):
-    train_dataloader = DataLoader(train_data, batch_size=batch_size)
+def create_data_loader(train_data, batch_size, num_workers):
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
     return train_dataloader
 
+
+def create_model_state_dict(model, train_loss, val_loss, optimizer, epoch):
+    model_state = {
+        'time': str(datetime.datetime.now()),
+        'model_state': model.state_dict(),
+        'model_name': type(encoder).__name__,
+        'optimizer_state': optimizer.state_dict(),
+        'optimizer_name': type(optimizer).__name__,
+        'epoch': epoch,
+        'train_loss': train_loss,
+        'val_loss': val_loss
+    }
+
+    return model_state
+
+
+def save_models(encoder, decoder, train_loss, val_loss, optimizer, epoch, best):
+    encoder_state = create_model_state_dict(encoder, train_loss, val_loss, optimizer, epoch)
+    decoder_state = create_model_state_dict(decoder, train_loss, val_loss, optimizer, epoch)
+
+    torch.save(encoder_state, 'last-encoder.pt')
+    torch.save(decoder_state, 'last-decoder.pt')
+
+    if best:
+        torch.save(encoder_state, 'best-encoder.pt')
+        torch.save(decoder_state, 'best-decoder.pt')
 
 
 def val_epoch(encoder, decoder, device, dataloader, loss_fn):
@@ -35,15 +62,8 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
                 decoded_data = decoder(encoded_data)
 
                 out.append(decoded_data.cpu())
-                #with open("validation_loss.txt", "w") as f:
-                #    f.write(f"{decoded_data.cpu().numpy()}\n")
                 label.append(windowed_batch.cpu())
 
-        #with open("validation_loss.txt") as f:
-        #    for line in f.readlines():
-        #       out.append(float(line.strip()))
-
-        #print(label)
         out = torch.cat(out)
         label = torch.cat(label)
         # Evaluate global loss
@@ -56,8 +76,6 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
     encoder.train()
     decoder.train()
     train_loss = []
-    f = open("training_loss.txt", "w")
-
     loop = tqdm(dataloader, leave=False)
     for image_batch, _ in loop:
         image_batch = image_batch.to(device)
@@ -66,36 +84,40 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
         decoded_data = decoder(encoded_data)
 
         loss = loss_fn(decoded_data, image_batch)
+        train_loss.append(loss)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         loop.set_postfix(loss=loss.item())
 
-        # print('\t partial train loss (single batch): %f' % loss.data)
-        f.write(f"{loss.detach().cpu().numpy()}\n")
-
-    f.close()
-
-    with open("training_loss.txt") as f:
-        for line in f.readlines():
-            train_loss.append(float(line.strip()))
-
     return np.mean(train_loss)
 
 
-def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs):
+def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step):
     print('Going training!')
-    #losses = {'train_loss': [], 'val_loss': []}
-    for i in range(epochs):
-        print(f"Epoch {i + 1}")
-        print(f"Train Loss: {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)}")
-        torch.save(encoder.state_dict(), f"encoder{i+1}.pt")
-        torch.save(decoder.state_dict(), f"decoder{i+1}.pt")
-        #losses['train_loss'].append(train_loss)
-        #losses['val_loss'].append(val_loss)
+    best_val_loss = float('inf')
+    best_epoch = 1
+    for epoch in range(1, epochs + 1):
+
+        print(f"Epoch {epoch}")
+
+        train_loss = train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)
+        print(f"Train Loss: {train_loss}")
+
+        if epoch == 1 or epoch % val_step == 0:
+            val_loss = val_epoch(encoder, decoder, device, val_loader, loss_fn)
+            print(f"Validation Loss: {val_loss}")
+            if epoch == 1 or val_loss < best_val_loss:
+                save_models(encoder, decoder, train_loss, val_loss, optimizer, epoch, best=True)
+                best_val_loss = val_loss
+                best_epoch = epoch
+
+        if epoch - best_epoch > val_step * 3:
+            print(f"Early stopping at epoch: {epoch}")
+            break
         print("---------------------------")
-    print(f"Validation Loss: {val_epoch(encoder, decoder, device, val_loader, loss_fn)}")
+
     print("Finished training")
 
 
@@ -122,6 +144,8 @@ if __name__ == "__main__":
     MAX_MIXES = 5
     MAX_DECIBEL = 105
     HOP_LEN = 517  # width of spec = Total number of samples / hop_length
+    NUM_WORKERS = 4
+    VAL_STEP = 1
 
     ds = MIXEDDataset(
         ABSOLUTE_PATH_DATA_FOLDER,
@@ -153,8 +177,8 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    train_data_loader = create_data_loader(ds, BATCH_SIZE)
-    val_data_loader = create_data_loader(vds, VAL_BATCH_SIZE)
+    train_data_loader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS)
+    val_data_loader = create_data_loader(vds, VAL_BATCH_SIZE, NUM_WORKERS)
     encoder = Encoder()
     decoder = Decoder()
     encoder.to(device)
@@ -168,4 +192,4 @@ if __name__ == "__main__":
     ]
 
     optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
-    train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS)
+    train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS, VAL_STEP)
