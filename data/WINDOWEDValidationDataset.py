@@ -28,7 +28,6 @@ class WINDOWEDValidationDataset(Dataset):
         return len(folder)
 
     def __getitem__(self, index):
-        index = index + 1
         folder, num_windows = self._get_window_folder_and_num_windows(index)
         label = self._get_audio_common_label(folder)
         full_folder_path = os.path.join(self.data_folder, str(folder))
@@ -87,7 +86,7 @@ if __name__ == "__main__":
     )
 
     print(f'There are {len(ds)} samples')
-    signal, label = ds[0]
+    signal, label = ds[-1]
     class_names = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
 
     import matplotlib.pyplot as plt

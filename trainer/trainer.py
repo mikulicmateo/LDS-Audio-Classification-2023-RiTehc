@@ -4,11 +4,12 @@ import torch
 import numpy as np
 import sys
 from tqdm import tqdm
+import os
 
 sys.path.insert(0, '../data/')
 
 from data.MIXEDDataset import MIXEDDataset
-from data.IRMASValidationDataset import IRMASValidationDataset
+from data.WINDOWEDValidationDataset import WINDOWEDValidationDataset
 from model.Encoder import Encoder
 from model.Decoder import Decoder
 
@@ -18,6 +19,7 @@ def create_data_loader(train_data, batch_size):
     return train_dataloader
 
 
+
 def val_epoch(encoder, decoder, device, dataloader, loss_fn):
     encoder.eval()
     decoder.eval()
@@ -25,18 +27,17 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
 
         out = []
         label = []
-        for image_batch in tqdm(dataloader, leave=False):
+        for image_batch, _ in tqdm(dataloader, leave=False):
+            for windowed_batch in image_batch:
+                windowed_batch = windowed_batch.to(device)
 
-            image_batch = image_batch.to(device)
+                encoded_data = encoder(windowed_batch)
+                decoded_data = decoder(encoded_data)
 
-            encoded_data, indices_first, indices_second = encoder(image_batch)
-            decoded_data = decoder(encoded_data, indices_first, indices_second)
-
-            out.append(decoded_data.cpu())
-            #with open("validation_loss.txt", "w") as f:
-            #    f.write(f"{decoded_data.cpu().numpy()}\n")
-            label.append(image_batch.cpu())
-            break
+                out.append(decoded_data.cpu())
+                #with open("validation_loss.txt", "w") as f:
+                #    f.write(f"{decoded_data.cpu().numpy()}\n")
+                label.append(windowed_batch.cpu())
 
         #with open("validation_loss.txt") as f:
         #    for line in f.readlines():
@@ -85,7 +86,7 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
 
 def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs):
     print('Going training!')
-    losses = {'train_loss': [], 'val_loss': []}
+    #losses = {'train_loss': [], 'val_loss': []}
     for i in range(epochs):
         print(f"Epoch {i + 1}")
         print(f"Train Loss: {train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)}")
@@ -94,7 +95,7 @@ def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device
         #losses['train_loss'].append(train_loss)
         #losses['val_loss'].append(val_loss)
         print("---------------------------")
-    #print(f"Validation Loss: {val_epoch(encoder, decoder, device, val_loader, loss_fn)}")
+    print(f"Validation Loss: {val_epoch(encoder, decoder, device, val_loader, loss_fn)}")
     print("Finished training")
 
 
@@ -105,8 +106,9 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    BATCH_SIZE = 100
-    EPOCHS = 16
+    BATCH_SIZE = 32
+    VAL_BATCH_SIZE = 1
+    EPOCHS = 50
     ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
@@ -137,16 +139,22 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    ANNOTATIONS_FILE = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Validation_Data/validation_annotation_file.csv'
-    PROJECT_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
-
-    vds = IRMASValidationDataset(
-        ANNOTATIONS_FILE,
-        PROJECT_DIR,
+    ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
+    FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
+    vds = WINDOWEDValidationDataset(
+        ABSOLUTE_PATH_VAL_DATA_FOLDER,
+        FOLDER_FILE_MAPPING_PATH,
+        NEW_SAMPLERATE,
+        NEW_CHANNELS,
+        MAX_NUM_SAMPLES,
+        N_MELS,
+        N_FFT,
+        MAX_DECIBEL,
+        HOP_LEN
     )
 
     train_data_loader = create_data_loader(ds, BATCH_SIZE)
-    val_data_loader = create_data_loader(vds, BATCH_SIZE)
+    val_data_loader = create_data_loader(vds, VAL_BATCH_SIZE)
     encoder = Encoder()
     decoder = Decoder()
     encoder.to(device)
