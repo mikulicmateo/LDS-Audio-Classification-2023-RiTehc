@@ -1,11 +1,11 @@
 import datetime
-import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
-import torch
-import numpy as np
-import sys
-from tqdm import tqdm
 import os
+import sys
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 sys.path.insert(0, '../data/')
 
@@ -18,6 +18,52 @@ from model.Decoder import Decoder
 def create_data_loader(train_data, batch_size, num_workers):
     train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
     return train_dataloader
+
+
+def load_model_optimizer(model_path, lr):
+    print("LOADING OPTIMIZER")
+    encoder = Encoder()
+    decoder = Decoder()
+    model_dict = torch.load(model_path)
+
+    optimizer_params = [
+        {'params': encoder.parameters()},
+        {'params': decoder.parameters()}
+    ]
+
+    optimizer = torch.optim.AdamW(optimizer_params, lr=lr, weight_decay=1e-05)
+    optimizer.load_state_dict(model_dict['optimizer_state'])
+
+    print(f"LOADED OPTIMIZER, train_loss {model_dict['train_loss']}"
+          + f", val_loss {model_dict['val_loss']}")
+
+    return optimizer
+
+
+def load_model_state(encoder_path, decoder_path):
+    print("LOADING MODEL")
+    encoder = Encoder()
+    decoder = Decoder()
+    encoder_dict = torch.load(encoder_path)
+    decoder_dict = torch.load(decoder_path)
+    encoder.load_state_dict(encoder_dict['model_state'])
+    decoder.load_state_dict(decoder_dict['model_state'])
+
+    print(f"LOADED MODEL, epoch {encoder_dict['epoch']}"
+          + f", time {encoder_dict['time']}")
+
+    return encoder, decoder, encoder_dict['epoch']
+
+
+def load_model_for_further_training(encoder_path, decoder_path, lr):
+    encoder, decoder, trained_epochs = load_model_state(encoder_path, decoder_path)
+
+    encoder.to(device)
+    decoder.to(device)
+
+    optimizer = load_model_optimizer(encoder_path, lr)
+
+    return encoder, decoder, trained_epochs, optimizer
 
 
 def create_model_state_dict(model, train_loss, val_loss, optimizer, epoch):
@@ -84,39 +130,49 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
         decoded_data = decoder(encoded_data)
 
         loss = loss_fn(decoded_data, image_batch)
-        train_loss.append(loss)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         loop.set_postfix(loss=loss.item())
+        train_loss.append(loss.detach().cpu().numpy())
 
     return np.mean(train_loss)
 
 
-def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step):
+def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step, start_epoch=1):
     print('Going training!')
     best_val_loss = float('inf')
-    best_epoch = 1
-    for epoch in range(1, epochs + 1):
+    val_epoch_start = 1
+    best_epoch = val_epoch_start
+    early_stop = False
+
+    for epoch in range(start_epoch, epochs + 1):
 
         print(f"Epoch {epoch}")
 
-        train_loss = train_epoch(encoder, decoder, device, train_loader, loss_fn, optimizer)
-        print(f"Train Loss: {train_loss}")
+        for i in range(1, 5):
+            train_loss = train_epoch(encoder, decoder, device, train_loader[i - 1], loss_fn, optimizer)
+            print(f"Checkpoint {i} Training Loss: {train_loss}")
 
-        if epoch == 1 or epoch % val_step == 0:
-            val_loss = val_epoch(encoder, decoder, device, val_loader, loss_fn)
-            print(f"Validation Loss: {val_loss}")
-            if epoch == 1 or val_loss < best_val_loss:
-                save_models(encoder, decoder, train_loss, val_loss, optimizer, epoch, best=True)
-                best_val_loss = val_loss
-                best_epoch = epoch
+            if epoch >= val_epoch_start:
+                if epoch == val_epoch_start or epoch % val_step == 0:
+                    val_loss = val_epoch(encoder, decoder, device, val_loader, loss_fn)
+                    print(f"Checkpoint {i} Validation Loss: {val_loss}")
+                    if epoch == val_epoch_start or val_loss < best_val_loss:
+                        save_models(encoder, decoder, train_loss, val_loss, optimizer, epoch, best=True)
+                        best_val_loss = val_loss
+                        best_epoch = epoch
 
-        if epoch - best_epoch > val_step * 3:
-            print(f"Early stopping at epoch: {epoch}")
-            break
+                if epoch - best_epoch > val_step * 3:
+                    print(f"Early stopping at epoch {epoch}, checkpoint: {i}")
+                    early_stop = True
+                    break
+
         print("---------------------------")
+
+        if early_stop:
+            break
 
     print("Finished training")
 
@@ -128,10 +184,11 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
+    LOAD_MODEL_TO_TRAIN = True
     BATCH_SIZE = 32
     VAL_BATCH_SIZE = 1
     EPOCHS = 50
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
@@ -146,6 +203,7 @@ if __name__ == "__main__":
     HOP_LEN = 517  # width of spec = Total number of samples / hop_length
     NUM_WORKERS = 4
     VAL_STEP = 1
+    CHECKPOINT_DATA_COUNT = 25_000
 
     ds = MIXEDDataset(
         ABSOLUTE_PATH_DATA_FOLDER,
@@ -163,7 +221,7 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
+    ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
     FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
     vds = WINDOWEDValidationDataset(
         ABSOLUTE_PATH_VAL_DATA_FOLDER,
@@ -176,20 +234,42 @@ if __name__ == "__main__":
         MAX_DECIBEL,
         HOP_LEN
     )
+    test_dataset = torch.utils.data.Subset(vds, range(800))
+    val_dataset = torch.utils.data.Subset(vds, range(800, len(vds)))
 
-    train_data_loader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS)
-    val_data_loader = create_data_loader(vds, VAL_BATCH_SIZE, NUM_WORKERS)
-    encoder = Encoder()
-    decoder = Decoder()
-    encoder.to(device)
-    decoder.to(device)
+    train_dataset = []
+    for i in range((len(ds) // CHECKPOINT_DATA_COUNT)):
+        train_dataset.append(
+            torch.utils.data.Subset(ds, range(i * CHECKPOINT_DATA_COUNT, (i + 1) * CHECKPOINT_DATA_COUNT)))
+
+    train_data_loader = []
+    for dataset in train_dataset:
+        train_data_loader.append(create_data_loader(dataset, BATCH_SIZE, NUM_WORKERS))
+
+    val_data_loader = create_data_loader(val_dataset, VAL_BATCH_SIZE, NUM_WORKERS)
+    test_data_loader = create_data_loader(test_dataset, VAL_BATCH_SIZE, NUM_WORKERS)
+
     loss_fn = torch.nn.MSELoss()
     lr = 0.0001
+    trained_epochs = 0
 
-    params_to_optimize = [
-        {'params': encoder.parameters()},
-        {'params': decoder.parameters()}
-    ]
+    if LOAD_MODEL_TO_TRAIN:
+        encoder, decoder, trained_epochs, optim = load_model_for_further_training(
+            "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-encoder.pt",
+            "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-decoder.pt",
+            lr)
+    else:
+        encoder = Encoder()
+        decoder = Decoder()
+        encoder.to(device)
+        decoder.to(device)
 
-    optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
-    train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS, VAL_STEP)
+        params_to_optimize = [
+            {'params': encoder.parameters()},
+            {'params': decoder.parameters()}
+        ]
+
+        optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
+
+    train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
+          VAL_STEP, trained_epochs + 1)
