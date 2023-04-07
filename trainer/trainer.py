@@ -15,9 +15,24 @@ from model.Encoder import Encoder
 from model.Decoder import Decoder
 
 
-def create_data_loader(train_data, batch_size, num_workers):
-    train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers)
+def create_data_loader(train_data, batch_size, num_workers, shuffle):
+    train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
     return train_dataloader
+
+
+def create_random_dataset_with_checkpoints(checkpoint_data_count, full_dataset):
+    dataset = []
+    for i in range((len(full_dataset) // checkpoint_data_count)):
+        dataset.append(checkpoint_data_count)
+
+    return torch.utils.data.random_split(full_dataset, dataset)
+
+
+def create_dataloaders_for_subsetet_data(subsets, batch_size, num_workers, shuffle):
+    data_loaders = []
+    for subset in subsets:
+        data_loaders.append(create_data_loader(subset, batch_size, num_workers, shuffle=shuffle))
+    return data_loaders
 
 
 def load_model_optimizer(model_path, lr):
@@ -184,7 +199,7 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    LOAD_MODEL_TO_TRAIN = True
+    LOAD_MODEL_TO_TRAIN = False
     BATCH_SIZE = 32
     VAL_BATCH_SIZE = 1
     EPOCHS = 50
@@ -237,17 +252,11 @@ if __name__ == "__main__":
     test_dataset = torch.utils.data.Subset(vds, range(800))
     val_dataset = torch.utils.data.Subset(vds, range(800, len(vds)))
 
-    train_dataset = []
-    for i in range((len(ds) // CHECKPOINT_DATA_COUNT)):
-        train_dataset.append(
-            torch.utils.data.Subset(ds, range(i * CHECKPOINT_DATA_COUNT, (i + 1) * CHECKPOINT_DATA_COUNT)))
+    train_dataset = create_random_dataset_with_checkpoints(CHECKPOINT_DATA_COUNT, ds)
+    train_data_loader = create_dataloaders_for_subsetet_data(train_dataset, BATCH_SIZE, NUM_WORKERS, shuffle=True)
 
-    train_data_loader = []
-    for dataset in train_dataset:
-        train_data_loader.append(create_data_loader(dataset, BATCH_SIZE, NUM_WORKERS))
-
-    val_data_loader = create_data_loader(val_dataset, VAL_BATCH_SIZE, NUM_WORKERS)
-    test_data_loader = create_data_loader(test_dataset, VAL_BATCH_SIZE, NUM_WORKERS)
+    val_data_loader = create_data_loader(val_dataset, VAL_BATCH_SIZE, NUM_WORKERS, shuffle=True)
+    test_data_loader = create_data_loader(test_dataset, VAL_BATCH_SIZE, NUM_WORKERS, shuffle=True)
 
     loss_fn = torch.nn.MSELoss()
     lr = 0.0001
