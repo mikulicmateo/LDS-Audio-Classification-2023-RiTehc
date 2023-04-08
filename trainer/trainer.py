@@ -13,6 +13,7 @@ from data.MIXEDDataset import MIXEDDataset
 from data.WINDOWEDValidationDataset import WINDOWEDValidationDataset
 from model.Encoder import Encoder
 from model.Decoder import Decoder
+from model.UNet_original import UNet
 
 
 def create_data_loader(train_data, batch_size, num_workers, shuffle):
@@ -85,7 +86,7 @@ def create_model_state_dict(model, train_loss, val_loss, optimizer, epoch):
     model_state = {
         'time': str(datetime.datetime.now()),
         'model_state': model.state_dict(),
-        'model_name': type(encoder).__name__,
+        'model_name': type(model).__name__,
         'optimizer_state': optimizer.state_dict(),
         'optimizer_name': type(optimizer).__name__,
         'epoch': epoch,
@@ -106,6 +107,14 @@ def save_models(encoder, decoder, train_loss, val_loss, optimizer, epoch, best):
     if best:
         torch.save(encoder_state, 'best-encoder.pt')
         torch.save(decoder_state, 'best-decoder.pt')
+
+def save_unet(unet, train_loss, val_loss, optimizer, epoch, best):
+    unet_state = create_model_state_dict(unet, train_loss, val_loss, optimizer, epoch)
+
+    torch.save(unet_state, 'last-unet.pt')
+
+    if best:
+        torch.save(unet_state, 'best-unet.pt')
 
 
 def val_epoch(encoder, decoder, device, dataloader, loss_fn):
@@ -132,8 +141,30 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
 
     return val_loss
 
+def val_epoch_unet(unet, device, dataloader, loss_fn):
+    unet.eval()
+    with torch.no_grad():
 
-def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
+        out = []
+        label = []
+        for image_batch, _ in tqdm(dataloader, leave=False):
+            for windowed_batch in image_batch:
+                windowed_batch = windowed_batch.to(device)
+
+                results = unet(windowed_batch)
+
+                out.append(results.cpu())
+                label.append(windowed_batch.cpu())
+
+        out = torch.cat(out)
+        label = torch.cat(label)
+        # Evaluate global loss
+        val_loss = loss_fn(out, label)
+
+    return val_loss
+
+
+def train_epoch(encoder, decoder,  device, dataloader, loss_fn, optimizer):
     encoder.train()
     decoder.train()
     train_loss = []
@@ -145,6 +176,26 @@ def train_epoch(encoder, decoder, device, dataloader, loss_fn, optimizer):
         decoded_data = decoder(encoded_data)
 
         loss = loss_fn(decoded_data, image_batch)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+        loop.set_postfix(loss=loss.item())
+        train_loss.append(loss.detach().cpu().numpy())
+
+    return np.mean(train_loss)
+
+
+def train_epoch_unet(unet, device, dataloader, loss_fn, optimizer):
+    unet.train()
+    train_loss = []
+    loop = tqdm(dataloader, leave=False)
+    for image_batch, _ in loop:
+        image_batch = image_batch.to(device)
+
+        results = unet(image_batch)
+
+        loss = loss_fn(results, image_batch)
 
         optimizer.zero_grad()
         loss.backward()
@@ -190,6 +241,43 @@ def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device
             break
 
     print("Finished training")
+
+def train_unet(unet, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step, start_epoch=1):
+    print('Going training!')
+    best_val_loss = float('inf')
+    val_epoch_start = 1
+    best_epoch = val_epoch_start
+    early_stop = False
+
+    for epoch in range(start_epoch, epochs + 1):
+
+        print(f"Epoch {epoch}")
+
+        for i in range(1, 5):
+            train_loss = train_epoch_unet(unet, device, train_loader[i - 1], loss_fn, optimizer)
+            print(f"Checkpoint {i} Training Loss: {train_loss}")
+
+            if epoch >= val_epoch_start:
+                if epoch == val_epoch_start or epoch % val_step == 0:
+                    val_loss = val_epoch_unet(unet, device, val_loader, loss_fn)
+                    print(f"Checkpoint {i} Validation Loss: {val_loss}")
+                    if epoch == val_epoch_start or val_loss < best_val_loss:
+                        save_unet(unet, train_loss, val_loss, optimizer, epoch, best=True)
+                        best_val_loss = val_loss
+                        best_epoch = epoch
+
+                if epoch - best_epoch > val_step * 3:
+                    print(f"Early stopping at epoch {epoch}, checkpoint: {i}")
+                    early_stop = True
+                    break
+
+        print("---------------------------")
+
+        if early_stop:
+            break
+
+    print("Finished training")
+
 
 
 if __name__ == "__main__":
@@ -268,17 +356,20 @@ if __name__ == "__main__":
             "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-decoder.pt",
             lr)
     else:
-        encoder = Encoder()
-        decoder = Decoder()
-        encoder.to(device)
-        decoder.to(device)
+        unet = UNet(padding=1)
+        unet.to(device)
 
-        params_to_optimize = [
-            {'params': encoder.parameters()},
-            {'params': decoder.parameters()}
-        ]
+        #encoder = Encoder()
+        #decoder = Decoder()
+        #encoder.to(device)
+        #decoder.to(device)
+#
+        #params_to_optimize = [
+        #    {'params': encoder.parameters()},
+        #    {'params': decoder.parameters()}
+        #]
 
-        optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
+        optim = torch.optim.AdamW(unet.parameters(), lr=lr, weight_decay=1e-05)
 
-    train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
+    train_unet(unet, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
           VAL_STEP, trained_epochs + 1)
