@@ -1,6 +1,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
+import copy
 
 
 # Model: padding is 0, if set to 1, NN will try to have same image size at the output
