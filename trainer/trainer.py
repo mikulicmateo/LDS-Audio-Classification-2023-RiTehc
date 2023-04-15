@@ -1,6 +1,7 @@
 import datetime
 import os
 import sys
+import matplotlib.pyplot as plt
 
 import numpy as np
 import torch
@@ -71,7 +72,7 @@ def load_model_state(encoder_path, decoder_path):
     return encoder, decoder, encoder_dict['epoch']
 
 
-def load_model_for_further_training(encoder_path, decoder_path, lr):
+def load_model_for_further_training(encoder_path, decoder_path, lr, device):
     encoder, decoder, trained_epochs = load_model_state(encoder_path, decoder_path)
 
     encoder.to(device)
@@ -131,12 +132,21 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
                 encoded_data = encoder(windowed_batch)
                 decoded_data = decoder(encoded_data)
 
+                # for i in range(len(decoded_data)):
+                #     plt.imshow(windowed_batch[i][0].cpu().detach().numpy())
+                #     plt.show()
+                #     plt.imshow(encoded_data[i][0].cpu().detach().numpy())
+                #     plt.show()
+                #     print(encoded_data[i][0].cpu().detach().numpy())
+                #     plt.imshow(decoded_data[i][0].cpu().detach().numpy())
+                #     plt.show()
+
                 out.append(decoded_data.cpu())
                 label.append(windowed_batch.cpu())
 
         out = torch.cat(out)
         label = torch.cat(label)
-        # Evaluate global loss
+        #Evaluate global loss
         val_loss = loss_fn(out, label)
 
     return val_loss
@@ -209,7 +219,7 @@ def train_epoch_unet(unet, device, dataloader, loss_fn, optimizer):
 def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step, start_epoch=1):
     print('Going training!')
     best_val_loss = float('inf')
-    val_epoch_start = 1
+    val_epoch_start = 5
     best_epoch = val_epoch_start
     early_stop = False
 
@@ -291,7 +301,7 @@ if __name__ == "__main__":
     BATCH_SIZE = 32
     VAL_BATCH_SIZE = 1
     EPOCHS = 50
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
@@ -324,7 +334,7 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
+    ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
     FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
     vds = WINDOWEDValidationDataset(
         ABSOLUTE_PATH_VAL_DATA_FOLDER,
@@ -352,24 +362,26 @@ if __name__ == "__main__":
 
     if LOAD_MODEL_TO_TRAIN:
         encoder, decoder, trained_epochs, optim = load_model_for_further_training(
-            "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-encoder.pt",
-            "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-decoder.pt",
-            lr)
+            "/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/best-encoder.pt",
+            "/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/best-decoder.pt",
+            lr,
+            device)
     else:
-        unet = UNet(padding=1)
-        unet.to(device)
+        # unet = UNet(padding=1)
+        # unet.to(device)
 
-        #encoder = Encoder()
-        #decoder = Decoder()
-        #encoder.to(device)
-        #decoder.to(device)
-#
-        #params_to_optimize = [
-        #    {'params': encoder.parameters()},
-        #    {'params': decoder.parameters()}
-        #]
+        encoder = Encoder()
+        decoder = Decoder()
+        encoder.to(device)
+        decoder.to(device)
 
-        optim = torch.optim.AdamW(unet.parameters(), lr=lr, weight_decay=1e-05)
+        params_to_optimize = [
+           {'params': encoder.parameters()},
+           {'params': decoder.parameters()}
+        ]
 
-    train_unet(unet, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
-          VAL_STEP, trained_epochs + 1)
+        optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
+
+    train(encoder,decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs, VAL_STEP, trained_epochs + 1)
+    # train_unet(unet, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
+    #       VAL_STEP, trained_epochs + 1)

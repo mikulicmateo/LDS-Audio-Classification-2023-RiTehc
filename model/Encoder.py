@@ -7,36 +7,27 @@ class Encoder(nn.Module):
         super().__init__()
 
         self.encoder_b1 = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, stride=1),
+            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(32, 64, kernel_size=3, stride=1),
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(32, 128, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2),
         )
-
-        self.encoder_max_pool = nn.MaxPool2d(2)
-
-        self.encoder_normalise = nn.BatchNorm2d(64)
 
         self.encoder_b2 = nn.Sequential(
-            nn.Conv2d(64, 128, kernel_size=3, stride=1),
+            nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(0.2),
-            nn.Conv2d(128, 256, kernel_size=3, stride=1),
+            nn.Conv2d(128, 32, kernel_size=3, stride=1, padding=1),
             nn.LeakyReLU(0.2),
-        )
-
-        self.encoder_b3 = nn.Sequential(
-            nn.Conv2d(256, 512, kernel_size=3, stride=1),
+            nn.Conv2d(32, 2, kernel_size=1, stride=1),
             nn.LeakyReLU(0.2),
         )
 
     def forward(self, x):
         x = self.encoder_b1(x)
-        x = self.encoder_max_pool(x)
-
-        x = self.encoder_normalise(x)
+        # print(x.shape)
         x = self.encoder_b2(x)
-        x = self.encoder_max_pool(x)
-
-        x = self.encoder_b3(x)
+        # print(x.shape)
 
         return x
