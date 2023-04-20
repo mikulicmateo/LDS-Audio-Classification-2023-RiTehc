@@ -11,6 +11,7 @@ from tqdm import tqdm
 sys.path.insert(0, '../data/')
 
 from data.MIXEDDataset import MIXEDDataset
+from data.WINDOWEDValidationDataset import WINDOWEDValidationDataset
 from model.Encoder import Encoder
 from model.UNet_original import UNet
 
@@ -51,19 +52,40 @@ def generate_embeddings_encoder(encoder, device, dataloader, save_path):
     encoder.eval()
     os.chdir(save_path)
     loop = tqdm(dataloader, leave=False)
-    first = True
+
     data = []
     for i, (image_batch, label) in enumerate(loop):
 
         image_batch = image_batch.to(device)
         embedding = encoder(image_batch)
-        embedding = torch.flatten(embedding)
 
-        temp = [i, embedding.cpu().detach().numpy(), [int(l) for l in label]]
+        temp = [embedding.cpu().detach().numpy(), [int(l) for l in label]]
         data.append(temp)
 
-    df = pd.DataFrame(data, columns=["index", "embedding", "label"])
-    df.to_pickle('embeddings.pickle')
+    df = pd.DataFrame(data, columns=["embedding", "label"])
+    df.to_pickle('embeddings-1024-fc.pickle')
+
+def generate_windowed_embeddings_encoder(encoder, device, dataloader, save_path):
+    encoder.eval()
+    os.chdir(save_path)
+
+    loop = tqdm(dataloader, leave=False)
+
+    data = []
+    for image_batch, label in loop:
+        embeddings = []
+        for windowed_batch in image_batch:
+            windowed_batch = windowed_batch.to(device)
+            encoded_data = encoder(windowed_batch)
+
+            embeddings.append(encoded_data.cpu().detach().numpy())
+        data.append([embeddings, [int(l) for l in label]])
+
+    df = pd.DataFrame(data, columns=['embeddings', 'labels'])
+    df.to_pickle('embeddings-val-1024-fc.pickle')
+
+
+
 
 def generate_embeddings_unet(unet, device, dataloader, save_path):
     unet.eval()
@@ -107,7 +129,7 @@ if __name__ == "__main__":
     BATCH_SIZE = 1
     VAL_BATCH_SIZE = 1
     EPOCHS = 50
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
@@ -140,10 +162,26 @@ if __name__ == "__main__":
         HOP_LEN
     )
 
-    train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
-    #unet = load_unet_state("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-unet.pt")
-    encoder = load_encoder_state("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-encoder.pt")
-    save_path = "/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc"
-    #generate_embeddings_unet(unet, device, train_dataloader, save_path)
-    generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
+    ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
+    FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
 
+    vds = WINDOWEDValidationDataset(
+        ABSOLUTE_PATH_VAL_DATA_FOLDER,
+        FOLDER_FILE_MAPPING_PATH,
+        NEW_SAMPLERATE,
+        NEW_CHANNELS,
+        MAX_NUM_SAMPLES,
+        N_MELS,
+        N_FFT,
+        MAX_DECIBEL,
+        HOP_LEN
+    )
+
+    train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
+    validation_dataloader = create_data_loader(vds, BATCH_SIZE, NUM_WORKERS, False)
+    #unet = load_unet_state("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-unet.pt")
+    encoder = load_encoder_state("/home/mateo/Desktop/model_flatten/1024embd/best-encoder.pt")
+    save_path = "/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data"
+    #generate_embeddings_unet(unet, device, train_dataloader, save_path)
+    # generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
+    generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)

@@ -6,6 +6,13 @@ class Decoder(nn.Module):
     def __init__(self):
         super().__init__()
 
+        self.decoder_fc = nn.Sequential(
+            nn.Linear(in_features=2*16*32, out_features=2*16*32),
+            nn.LeakyReLU(0.2),
+        )
+
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(2, 16, 32))
+
         self.decoder_b11 = nn.Sequential(
             nn.ConvTranspose2d(2, 32, kernel_size=1, stride=1),
             nn.LeakyReLU(0.2)
@@ -37,6 +44,8 @@ class Decoder(nn.Module):
         )
 
     def forward(self, x):
+        x = self.decoder_fc(x)
+        x = self.unflatten(x)
         x = self.decoder_b11(x)
         # print(x.shape)
         x = self.decoder_b12(x)

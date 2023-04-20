@@ -24,10 +24,18 @@ class Encoder(nn.Module):
             nn.LeakyReLU(0.2),
         )
 
+        self.flatten = nn.Flatten()
+        #
+        self.encoder_fc = nn.Sequential(
+            nn.Linear(in_features=2*16*32, out_features=2*16*32),
+            nn.LeakyReLU(0.2),
+        )
+
     def forward(self, x):
         x = self.encoder_b1(x)
         # print(x.shape)
         x = self.encoder_b2(x)
         # print(x.shape)
-
+        x = self.flatten(x)
+        x = self.encoder_fc(x)
         return x
