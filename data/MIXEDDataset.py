@@ -12,7 +12,7 @@ from utils.AudioUtil import AudioUtil
 class MIXEDDataset(Dataset):
 
     def __init__(self, absolute_path_data_folder, new_samplerate, new_channels, max_num_samples, shift_limit, n_mels,
-                 n_fft, mask_percent, n_freq_masks, n_time_masks, max_mixes, db_max, hop_len=None):
+                 n_fft, mask_percent, n_freq_masks, n_time_masks, max_mixes, db_max, hop_len=None, min_val=-100.0, max_val=48.75732421875):
         self.data_folder = absolute_path_data_folder
         self.new_samplerate = new_samplerate
         self.new_channels = new_channels
@@ -26,6 +26,8 @@ class MIXEDDataset(Dataset):
         self.n_time_masks = n_time_masks
         self.max_mixes = max_mixes
         self.top_db = db_max
+        self.max_val = max_val
+        self.min_val = min_val
 
     def __len__(self):
         folder = glob.glob(os.path.join(self.data_folder, "**/*.wav"), recursive=True)
@@ -37,10 +39,11 @@ class MIXEDDataset(Dataset):
         label = self._get_audio_sample_label(index)
         audio = torchaudio.load(path, normalize=True)
         resampled = AudioUtil.resample(audio, self.new_samplerate)
-        # rechanneled = AudioUtil.rechannel(audio, self.new_channels)
+        rechanneled = AudioUtil.rechannel(audio, self.new_channels)
         # resized = AudioUtil.pad_trunc(rechanneled, self.max_num_samples)
         # reshifted = AudioUtil.time_shift(resized, self.shift_limit)
-        spectrogram = AudioUtil.generate_spectrogram(resampled, self.n_mels, self.n_fft, self.top_db, self.hop_len)
+        spectrogram = AudioUtil.generate_spectrogram(rechanneled, self.n_mels, self.n_fft, self.top_db, self.hop_len)
+        spectrogram = AudioUtil.standardize(spectrogram, self.min_val, self.max_val)
         #augmented_spectrogram = AudioUtil.spectrogram_augment(spectrogram, self.mask_percent, self.n_freq_masks, self.n_time_masks)
         return spectrogram, label
 

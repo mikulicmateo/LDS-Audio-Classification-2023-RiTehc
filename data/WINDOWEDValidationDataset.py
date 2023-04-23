@@ -12,7 +12,7 @@ from utils.AudioUtil import AudioUtil
 
 class WINDOWEDValidationDataset(Dataset):
 
-    def __init__(self, absolute_path_data_folder, folder_file_mapping_path, new_samplerate, new_channels, max_num_samples, n_mels, n_fft, db_max, hop_len=None):
+    def __init__(self, absolute_path_data_folder, folder_file_mapping_path, new_samplerate, new_channels, max_num_samples, n_mels, n_fft, db_max, hop_len=None,  min_val=-100.0, max_val=48.75732421875):
         self.data_folder = absolute_path_data_folder
         self.folder_file_mapping = pd.read_csv(folder_file_mapping_path)
         self.new_samplerate = new_samplerate
@@ -22,6 +22,8 @@ class WINDOWEDValidationDataset(Dataset):
         self.n_fft = n_fft
         self.hop_len = hop_len
         self.top_db = db_max
+        self.max_val = max_val
+        self.min_val = min_val
 
     def __len__(self):
         folder = glob.glob(os.path.join(self.data_folder, "**/*.json"), recursive=True)
@@ -48,7 +50,7 @@ class WINDOWEDValidationDataset(Dataset):
         rechanneled = AudioUtil.rechannel(resampled, self.new_channels)
         # resized = AudioUtil.pad_trunc(rechanneled, self.max_num_samples)
         spectrogram = AudioUtil.generate_spectrogram(rechanneled, self.n_mels, self.n_fft, self.top_db, self.hop_len)
-
+        spectrogram = AudioUtil.standardize(spectrogram, self.min_val, self.max_val)
         return spectrogram
     def _get_window_folder_and_num_windows(self, index):
         folder = self.folder_file_mapping.iloc[index][1]

@@ -15,9 +15,10 @@ class AudioUtil:
 
         if new_channel == 1:
             resignal = torch.mean(signal, dim=0, keepdim=True)  # signal[:1, :]
-        else:
+        elif new_channel == 2:
             resignal = torch.cat([signal, signal])
-
+        else:
+            resignal = torch.cat([signal, signal, signal])
         return resignal, sr
 
     @staticmethod
@@ -89,3 +90,12 @@ class AudioUtil:
             aug_spec = transforms.TimeMasking(time_mask_param)(aug_spec, mask_value)
 
         return aug_spec
+
+    @staticmethod
+    def standardize(spectrogram, min_val, max_val):
+        min_val = min_val - (min_val*0.1)
+        max_val = max_val + (max_val*0.1)
+        new_max = 1
+        new_min = 0
+        spectrogram = (spectrogram - min_val)/(max_val - min_val) * (new_max - new_min) + new_min
+        return spectrogram

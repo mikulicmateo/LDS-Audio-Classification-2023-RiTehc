@@ -7,6 +7,8 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+from torchvision.models import resnet50, ResNet50_Weights
+
 
 sys.path.insert(0, '../data/')
 
@@ -63,7 +65,7 @@ def generate_embeddings_encoder(encoder, device, dataloader, save_path):
         data.append(temp)
 
     df = pd.DataFrame(data, columns=["embedding", "label"])
-    df.to_pickle('embeddings-1024-fc.pickle')
+    df.to_pickle('embeddings-1000-resnet50.pickle')
 
 def generate_windowed_embeddings_encoder(encoder, device, dataloader, save_path):
     encoder.eval()
@@ -82,7 +84,7 @@ def generate_windowed_embeddings_encoder(encoder, device, dataloader, save_path)
         data.append([embeddings, [int(l) for l in label]])
 
     df = pd.DataFrame(data, columns=['embeddings', 'labels'])
-    df.to_pickle('embeddings-val-1024-fc.pickle')
+    df.to_pickle('embeddings-val-1000-resnet50.pickle')
 
 
 
@@ -129,19 +131,20 @@ if __name__ == "__main__":
     BATCH_SIZE = 1
     VAL_BATCH_SIZE = 1
     EPOCHS = 50
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    # ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Uniform_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
-    NEW_CHANNELS = 1
+    NEW_CHANNELS = 3
     MAX_NUM_SAMPLES = 66150  # TODO
     SHIFT_PERCENT = 0.1
-    N_MELS = 64  # height of spec
+    N_MELS = 224  # height of spec
     N_FFT = 1024
     MAX_MASK_PERCENT = 0.1
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
     MAX_DECIBEL = 105
-    HOP_LEN = 517  # width of spec = Total number of samples / hop_length
+    HOP_LEN = 296  # width of spec = Total number of samples / hop_length
     NUM_WORKERS = 4
     VAL_STEP = 1
     CHECKPOINT_DATA_COUNT = 25_000
@@ -180,8 +183,10 @@ if __name__ == "__main__":
     train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
     validation_dataloader = create_data_loader(vds, BATCH_SIZE, NUM_WORKERS, False)
     #unet = load_unet_state("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-unet.pt")
-    encoder = load_encoder_state("/home/mateo/Desktop/model_flatten/1024embd/best-encoder.pt")
+    # encoder = load_encoder_state("/home/mateo/Desktop/model_flatten/1024embd/best-encoder.pt")
     save_path = "/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data"
+    encoder = resnet50(weights=ResNet50_Weights.DEFAULT)
+    encoder.to(device)
     #generate_embeddings_unet(unet, device, train_dataloader, save_path)
-    # generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
-    generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)
+    generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
+    # generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)
