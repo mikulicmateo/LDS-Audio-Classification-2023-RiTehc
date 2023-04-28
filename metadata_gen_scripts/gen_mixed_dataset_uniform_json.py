@@ -3,14 +3,15 @@ import pandas as pd
 from matplotlib import pyplot as plt
 import os
 import json
-import copy
+import faiss
 
 from DataBag import DataBag
 
 working_dir = os.path.dirname(os.getcwd())
 os.chdir(working_dir)
-DEFAULT_TRAIN_ANNOTATION_FILE = r'IRMAS_Training_Data/training_annotation_file.csv'
+DEFAULT_TRAIN_ANNOTATION_FILE = r'IRMAS_Training_Data/training_annotation_file_with_genres.csv'
 instruments = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
+genres = ['cla', 'jaz_blu', 'pop_roc', 'cou_fol', 'lat_sou']
 
 num_of_companion_instruments_percentage = {
     "tru": [],
@@ -57,28 +58,28 @@ all_instruments_counter = {
 r_generated_instrument_counter = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 r_specific_instrument_counter = {
-    "tru": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "gac": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "sax": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "cel": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "flu": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "gel": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "vio": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "cla": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "pia": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "org": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)],
-    "voi": [0, copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter), copy.deepcopy(all_instruments_counter),
-            copy.deepcopy(all_instruments_counter)]
+    "tru": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "gac": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "sax": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "cel": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "flu": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "gel": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "vio": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "cla": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "pia": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "org": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()],
+    "voi": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
+            all_instruments_counter.copy()]
 }
 
 
@@ -91,8 +92,10 @@ def generate_probabilities(insturment_index):
             probs.append(0.)
     return probs
 
+
 def generate_uniform(n):
     return [1/n for i in range(n)]
+
 
 def create_distribution_plot(dictionary, instrument_name, num_of_instruments=0):
     sum = np.sum(list(dictionary.values()))
@@ -150,7 +153,7 @@ for instrument in instruments:
 # --------------
 # Logic
 # --------------
-samples_amount = 250_000
+samples_amount = 100_000
 num_of_val_files = 2874
 num_of_val_instruments = 4917
 mixed_dataset_instrument_amount = num_of_val_instruments / num_of_val_files * samples_amount
@@ -170,10 +173,16 @@ mixed_dataset_samples = {
     'samples': []
 }
 
+no_genre_flag = False
 # while np.sum(total_instrument_count) >= 0:
 while samples_count < samples_amount:
+    if no_genre_flag:
+        samples_count -= 1
+        no_genre_flag = False
+
     dataset_sample = {
-        'label': copy.deepcopy(all_instruments_counter),
+        'genre': "",
+        'label': all_instruments_counter.copy(),
         'paths': []
     }
     samples_count += 1
@@ -181,13 +190,28 @@ while samples_count < samples_amount:
     instrument_index = np.random.choice(np.arange(11), p=generate_uniform(11))
     instrument = instruments[instrument_index]
 
-    dataset_sample['paths'].append(data_bag.get_bag_item(instrument))
+    genre_index = np.random.choice(np.arange(len(genres)), p=generate_uniform(len(genres)))
+    genre = genres[genre_index]
+
+    while True:
+        path = data_bag.get_bag_item(instrument, genre)
+        if path is None:
+            genre_index = np.random.choice(np.arange(len(genres)), p=generate_uniform(len(genres)))
+            genre = genres[genre_index]
+        else:
+            break
+
+    dataset_sample['genre'] = genre
+    dataset_sample['paths'].append(path)
     dataset_sample['label'][instrument] = 1
 
     # total_instrument_count[instruments.index(instrument)] -= 1
     r_generated_instrument_counter[instruments.index(instrument)] += 1
-    num_of_companion_instruments = np.random.choice(np.arange(11),
-                                                    p=generate_uniform(11))
+    max_companion_instruments = 6
+    num_of_companion_instruments = np.random.choice(np.arange(max_companion_instruments),
+                                                    p=generate_uniform(max_companion_instruments))
+
+    #print(num_of_companion_instruments)
 
     if num_of_companion_instruments == 0:
         mixed_dataset_samples['samples'].append(dataset_sample)
@@ -206,8 +230,27 @@ while samples_count < samples_amount:
     # companion_instruments = []
     for companion_instrument_index in companion_instruments_indices:
         companion_instrument = instruments[companion_instrument_index]
+        loop_counter = 0
+        while True:
+            path = data_bag.get_bag_item(companion_instrument, genre)
+            if path is None:
+                loop_counter += 1
+                companion_instrument_index = np.random.choice(11, replace=False,
+                                                              p=generate_probabilities(instrument_index))
+                companion_instrument = instruments[companion_instrument_index]
+            else:
+                break
 
-        dataset_sample['paths'].append(data_bag.get_bag_item(companion_instrument))
+            # if this genre does not have any other instruments
+            # generate new instrument
+            if loop_counter == 11:
+                no_genre_flag = True
+                break
+
+        if no_genre_flag:
+            break
+
+        dataset_sample['paths'].append(path)
         dataset_sample['label'][companion_instrument] = 1
 
         # total_instrument_count[companion_instrument_index] -= 1
@@ -216,13 +259,16 @@ while samples_count < samples_amount:
         #r_specific_instrument_counter[instrument][num_of_companion_instruments][companion_instrument] += 1
         # companion_instruments.append(companion_instrument)
 
+    if no_genre_flag:
+        continue
+
     mixed_dataset_samples['samples'].append(dataset_sample)
 
 # Serializing json
 dataset_json = json.dumps(mixed_dataset_samples, indent=4)
 
 # Writing to sample.json
-with open("MIXED_Uniform_Training_Data/generated_dataset.json", "w") as outfile:
+with open("MIXED_Training_Data/generated_dataset.json", "w") as outfile:
     outfile.write(dataset_json)
 
 # --------------
@@ -234,5 +280,5 @@ with open("MIXED_Uniform_Training_Data/generated_dataset.json", "w") as outfile:
 print(f'total samples generated: {samples_count}')
 
 # Uncomment if you want to save plots
-# save_folder_path = r'/home/dominik/Desktop/Plots/'
-# save_plots(save_folder_path)
+#save_folder_path = r'/home/dominik/Desktop/Plots/'
+#save_plots(save_folder_path)
