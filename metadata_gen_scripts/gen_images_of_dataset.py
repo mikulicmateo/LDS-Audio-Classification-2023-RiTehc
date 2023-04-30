@@ -45,7 +45,7 @@ if __name__ == "__main__":
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
-    MAX_DECIBEL = 105
+    MAX_DECIBEL = 80
     HOP_LEN = 517  # width of spec = Total number of samples / hop_length
     NUM_WORKERS = 10
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     )
 
     validation_dataloader = create_data_loader(vds, BATCH_SIZE, NUM_WORKERS, False)
-    #train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
+    train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
 
-    #generate_training_images(train_dataloader, ABSOLUTE_PATH_DATA_FOLDER, "png")
+    generate_training_images(train_dataloader, ABSOLUTE_PATH_DATA_FOLDER, "png")
     generate_validation_images(validation_dataloader, ABSOLUTE_PATH_VAL_DATA_FOLDER, "png")

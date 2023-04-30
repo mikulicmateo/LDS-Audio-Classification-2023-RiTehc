@@ -3,6 +3,7 @@ from torch.utils.data import DataLoader
 import torch
 from tqdm import tqdm
 from data.WINDOWEDValidationDataset import WINDOWEDValidationDataset
+from data.WINDOWEDValidationDatasetImages import WINDOWEDValidationDatasetImages
 
 import os
 import sys
@@ -26,16 +27,26 @@ def val_epoch(encoder, decoder, device, dataloader, loss_fn):
                 decoded_data = decoder(encoded_data)
 
                 for i in range(len(decoded_data)):
-                    plt.imshow(windowed_batch[i][0].cpu().detach().numpy())
+                    # Image.open(windowed_batch[i][0].cpu().detach().numpy())
+                    plt.imshow(windowed_batch[i].cpu().permute(1, 2, 0).detach().numpy())
                     plt.title("IN")
                     plt.show()
-                    plt.imshow(encoded_data[i][0].cpu().detach().numpy())
-                    plt.title("EMBEDDING 1")
+                    plt.imshow(encoded_data[i].cpu().permute(1,2,0).detach().numpy())
+                    plt.title("EMBEDDING")
                     plt.show()
-                    plt.imshow(encoded_data[i][1].cpu().detach().numpy())
-                    plt.title("EMBEDDING 2")
-                    plt.show()
-                    plt.imshow(decoded_data[i][0].cpu().detach().numpy())
+                    # plt.imshow(encoded_data[i][1].cpu().detach().numpy())
+                    # plt.title("EMBEDDING 2")
+                    # plt.show()
+                    # plt.imshow(torch.flatten(encoded_data[i]).cpu().detach().numpy().reshape((1,1024)))
+                    # plt.title("EMBEDDING flat")
+                    # plt.show()
+                    # plt.imshow(encoded_data[i][0].cpu().detach().numpy())
+                    # plt.title("EMBEDDING 1")
+                    # plt.show()
+                    # plt.imshow(encoded_data[i][1].cpu().detach().numpy())
+                    # plt.title("EMBEDDING 2")
+                    # plt.show()
+                    plt.imshow(decoded_data[i].cpu().permute(1, 2, 0).detach().numpy())
                     plt.title("OUT")
                     plt.show()
 
@@ -71,7 +82,7 @@ if __name__ == "__main__":
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
-    MAX_DECIBEL = 105
+    MAX_DECIBEL = 80
     HOP_LEN = 517  # width of spec = Total number of samples / hop_length
     NUM_WORKERS = 4
     VAL_STEP = 1
@@ -80,16 +91,20 @@ if __name__ == "__main__":
 
     ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
     FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
-    vds = WINDOWEDValidationDataset(
+    # vds = WINDOWEDValidationDataset(
+    #     ABSOLUTE_PATH_VAL_DATA_FOLDER,
+    #     FOLDER_FILE_MAPPING_PATH,
+    #     NEW_SAMPLERATE,
+    #     NEW_CHANNELS,
+    #     MAX_NUM_SAMPLES,
+    #     N_MELS,
+    #     N_FFT,
+    #     MAX_DECIBEL,
+    #     HOP_LEN
+    #
+    vds = WINDOWEDValidationDatasetImages(
         ABSOLUTE_PATH_VAL_DATA_FOLDER,
-        FOLDER_FILE_MAPPING_PATH,
-        NEW_SAMPLERATE,
-        NEW_CHANNELS,
-        MAX_NUM_SAMPLES,
-        N_MELS,
-        N_FFT,
-        MAX_DECIBEL,
-        HOP_LEN
+        FOLDER_FILE_MAPPING_PATH
     )
 
     test_dataset = torch.utils.data.Subset(vds, range(800))

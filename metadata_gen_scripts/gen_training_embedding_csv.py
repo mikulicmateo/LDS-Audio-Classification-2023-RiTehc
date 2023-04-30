@@ -8,7 +8,8 @@ import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from torchvision.models import resnet50, ResNet50_Weights
-
+from data.WINDOWEDValidationDatasetImages import WINDOWEDValidationDatasetImages
+from data.MIXEDDatasetImages import MIXEDDatasetImages
 
 sys.path.insert(0, '../data/')
 
@@ -60,12 +61,13 @@ def generate_embeddings_encoder(encoder, device, dataloader, save_path):
 
         image_batch = image_batch.to(device)
         embedding = encoder(image_batch)
+        embedding = torch.flatten(embedding)
 
         temp = [embedding.cpu().detach().numpy(), [int(l) for l in label]]
         data.append(temp)
 
     df = pd.DataFrame(data, columns=["embedding", "label"])
-    df.to_pickle('embeddings-1000-resnet50.pickle')
+    df.to_pickle('embeddings-16x32-encoder.pickle')
 
 def generate_windowed_embeddings_encoder(encoder, device, dataloader, save_path):
     encoder.eval()
@@ -84,7 +86,7 @@ def generate_windowed_embeddings_encoder(encoder, device, dataloader, save_path)
         data.append([embeddings, [int(l) for l in label]])
 
     df = pd.DataFrame(data, columns=['embeddings', 'labels'])
-    df.to_pickle('embeddings-val-1000-resnet50.pickle')
+    df.to_pickle('embeddings-windowed-16x32-encoder.pickle')
 
 
 
@@ -127,7 +129,7 @@ if __name__ == "__main__":
         device = "cpu"
     print(f"Using {device}")
 
-    LOAD_MODEL_TO_TRAIN = True
+    # LOAD_MODEL_TO_TRAIN = True
     BATCH_SIZE = 1
     VAL_BATCH_SIZE = 1
     EPOCHS = 50
@@ -146,38 +148,46 @@ if __name__ == "__main__":
     MAX_DECIBEL = 105
     HOP_LEN = 296  # width of spec = Total number of samples / hop_length
     NUM_WORKERS = 4
-    VAL_STEP = 1
-    CHECKPOINT_DATA_COUNT = 25_000
+    # VAL_STEP = 1
+    # CHECKPOINT_DATA_COUNT = 25_000
 
-    ds = MIXEDDataset(
-        ABSOLUTE_PATH_DATA_FOLDER,
-        NEW_SAMPLERATE,
-        NEW_CHANNELS,
-        MAX_NUM_SAMPLES,
-        SHIFT_PERCENT,
-        N_MELS,
-        N_FFT,
-        MAX_MASK_PERCENT,
-        N_FREQ_MASKS,
-        N_TIME_MASKS,
-        MAX_MIXES,
-        MAX_DECIBEL,
-        HOP_LEN
-    )
+    # ds = MIXEDDataset(
+    #     ABSOLUTE_PATH_DATA_FOLDER,
+    #     NEW_SAMPLERATE,
+    #     NEW_CHANNELS,
+    #     MAX_NUM_SAMPLES,
+    #     SHIFT_PERCENT,
+    #     N_MELS,
+    #     N_FFT,
+    #     MAX_MASK_PERCENT,
+    #     N_FREQ_MASKS,
+    #     N_TIME_MASKS,
+    #     MAX_MIXES,
+    #     MAX_DECIBEL,
+    #     HOP_LEN
+    # )
 
     ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
     FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
 
-    vds = WINDOWEDValidationDataset(
+    # vds = WINDOWEDValidationDataset(
+    #     ABSOLUTE_PATH_VAL_DATA_FOLDER,
+    #     FOLDER_FILE_MAPPING_PATH,
+    #     NEW_SAMPLERATE,
+    #     NEW_CHANNELS,
+    #     MAX_NUM_SAMPLES,
+    #     N_MELS,
+    #     N_FFT,
+    #     MAX_DECIBEL,
+    #     HOP_LEN
+    # )
+    ds = MIXEDDatasetImages(
+        ABSOLUTE_PATH_DATA_FOLDER
+    )
+
+    vds = WINDOWEDValidationDatasetImages(
         ABSOLUTE_PATH_VAL_DATA_FOLDER,
-        FOLDER_FILE_MAPPING_PATH,
-        NEW_SAMPLERATE,
-        NEW_CHANNELS,
-        MAX_NUM_SAMPLES,
-        N_MELS,
-        N_FFT,
-        MAX_DECIBEL,
-        HOP_LEN
+        FOLDER_FILE_MAPPING_PATH
     )
 
     train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
@@ -188,5 +198,5 @@ if __name__ == "__main__":
     encoder = resnet50(weights=ResNet50_Weights.DEFAULT)
     encoder.to(device)
     #generate_embeddings_unet(unet, device, train_dataloader, save_path)
-    generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
-    # generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)
+    # generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
+    generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)

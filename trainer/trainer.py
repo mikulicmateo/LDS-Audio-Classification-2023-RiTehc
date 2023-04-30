@@ -12,6 +12,10 @@ sys.path.insert(0, '../data/')
 
 from data.MIXEDDataset import MIXEDDataset
 from data.WINDOWEDValidationDataset import WINDOWEDValidationDataset
+
+from data.MIXEDDatasetImages import MIXEDDatasetImages
+from data.WINDOWEDValidationDatasetImages import WINDOWEDValidationDatasetImages
+
 from model.Encoder import Encoder
 from model.Decoder import Decoder
 from model.UNet_original import UNet
@@ -219,21 +223,26 @@ def train_epoch_unet(unet, device, dataloader, loss_fn, optimizer):
 def train(encoder, decoder, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step, start_epoch=1):
     print('Going training!')
     best_val_loss = float('inf')
-    val_epoch_start = 5
+    val_epoch_start = 1
     best_epoch = val_epoch_start
     early_stop = False
+    checkpoints_num = len(train_loader)
 
     for epoch in range(start_epoch, epochs + 1):
 
         print(f"Epoch {epoch}")
 
-        for i in range(1, 5):
+        for i in range(1, checkpoints_num + 1):
             train_loss = train_epoch(encoder, decoder, device, train_loader[i - 1], loss_fn, optimizer)
             print(f"Checkpoint {i} Training Loss: {train_loss}")
 
             if epoch >= val_epoch_start:
                 if epoch == val_epoch_start or epoch % val_step == 0:
-                    val_loss = val_epoch(encoder, decoder, device, val_loader, loss_fn)
+                    val_loss = 0
+                    for k in range(len(val_loader)):
+                        new_val_loss = val_epoch(encoder, decoder, device, val_loader[k], loss_fn)
+                        if new_val_loss > val_loss:
+                            val_loss = new_val_loss
                     print(f"Checkpoint {i} Validation Loss: {val_loss}")
                     if epoch == val_epoch_start or val_loss < best_val_loss:
                         save_models(encoder, decoder, train_loss, val_loss, optimizer, epoch, best=True)
@@ -300,60 +309,71 @@ if __name__ == "__main__":
     LOAD_MODEL_TO_TRAIN = False
     BATCH_SIZE = 32
     VAL_BATCH_SIZE = 1
-    EPOCHS = 50
+    EPOCHS = 200
     ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
     SHIFT_PERCENT = 0.1
-    N_MELS = 64  # height of spec
+    N_MELS = 64  # 224  # height of spec
     N_FFT = 1024
     MAX_MASK_PERCENT = 0.1
     N_FREQ_MASKS = 2
     N_TIME_MASKS = 2
     MAX_MIXES = 5
     MAX_DECIBEL = 105
-    HOP_LEN = 517  # width of spec = Total number of samples / hop_length
-    NUM_WORKERS = 4
+    HOP_LEN = 517  # 295 # width of spec = Total number of samples / hop_length
+    NUM_WORKERS = 6
     VAL_STEP = 1
     CHECKPOINT_DATA_COUNT = 25_000
 
-    ds = MIXEDDataset(
-        ABSOLUTE_PATH_DATA_FOLDER,
-        NEW_SAMPLERATE,
-        NEW_CHANNELS,
-        MAX_NUM_SAMPLES,
-        SHIFT_PERCENT,
-        N_MELS,
-        N_FFT,
-        MAX_MASK_PERCENT,
-        N_FREQ_MASKS,
-        N_TIME_MASKS,
-        MAX_MIXES,
-        MAX_DECIBEL,
-        HOP_LEN
+    # ds = MIXEDDataset(
+    #     ABSOLUTE_PATH_DATA_FOLDER,
+    #     NEW_SAMPLERATE,
+    #     NEW_CHANNELS,
+    #     MAX_NUM_SAMPLES,
+    #     SHIFT_PERCENT,
+    #     N_MELS,
+    #     N_FFT,
+    #     MAX_MASK_PERCENT,
+    #     N_FREQ_MASKS,
+    #     N_TIME_MASKS,
+    #     MAX_MIXES,
+    #     MAX_DECIBEL,
+    #     HOP_LEN
+    # )
+
+    ds = MIXEDDatasetImages(
+        ABSOLUTE_PATH_DATA_FOLDER
     )
 
     ABSOLUTE_PATH_VAL_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/WINDOWED_Validation_Data'
     FOLDER_FILE_MAPPING_PATH = os.path.join(ABSOLUTE_PATH_VAL_DATA_FOLDER, 'folder_file_mapping.csv')
-    vds = WINDOWEDValidationDataset(
+    # vds = WINDOWEDValidationDataset(
+    #     ABSOLUTE_PATH_VAL_DATA_FOLDER,
+    #     FOLDER_FILE_MAPPING_PATH,
+    #     NEW_SAMPLERATE,
+    #     NEW_CHANNELS,
+    #     MAX_NUM_SAMPLES,
+    #     N_MELS,
+    #     N_FFT,
+    #     MAX_DECIBEL,
+    #     HOP_LEN
+    # )
+
+    vds = WINDOWEDValidationDatasetImages(
         ABSOLUTE_PATH_VAL_DATA_FOLDER,
-        FOLDER_FILE_MAPPING_PATH,
-        NEW_SAMPLERATE,
-        NEW_CHANNELS,
-        MAX_NUM_SAMPLES,
-        N_MELS,
-        N_FFT,
-        MAX_DECIBEL,
-        HOP_LEN
+        FOLDER_FILE_MAPPING_PATH
     )
-    test_dataset = torch.utils.data.Subset(vds, range(800))
-    val_dataset = torch.utils.data.Subset(vds, range(800, len(vds)))
+
+    test_dataset = torch.utils.data.Subset(vds, range(794))
+    val_dataset = torch.utils.data.Subset(vds, range(794, len(vds)))
 
     train_dataset = create_random_dataset_with_checkpoints(CHECKPOINT_DATA_COUNT, ds)
     train_data_loader = create_dataloaders_for_subsetet_data(train_dataset, BATCH_SIZE, NUM_WORKERS, shuffle=True)
 
-    val_data_loader = create_data_loader(val_dataset, VAL_BATCH_SIZE, NUM_WORKERS, shuffle=True)
+    val_dataset = create_random_dataset_with_checkpoints(520, val_dataset)
+    val_data_loader = create_dataloaders_for_subsetet_data(val_dataset, VAL_BATCH_SIZE, NUM_WORKERS, shuffle=True)
     test_data_loader = create_data_loader(test_dataset, VAL_BATCH_SIZE, NUM_WORKERS, shuffle=True)
 
     loss_fn = torch.nn.MSELoss()
@@ -376,12 +396,13 @@ if __name__ == "__main__":
         decoder.to(device)
 
         params_to_optimize = [
-           {'params': encoder.parameters()},
-           {'params': decoder.parameters()}
+            {'params': encoder.parameters()},
+            {'params': decoder.parameters()}
         ]
 
         optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
 
-    train(encoder,decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs, VAL_STEP, trained_epochs + 1)
+    train(encoder, decoder, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
+          VAL_STEP, trained_epochs + 1)
     # train_unet(unet, train_data_loader, val_data_loader, loss_fn, optim, device, EPOCHS + trained_epochs,
     #       VAL_STEP, trained_epochs + 1)

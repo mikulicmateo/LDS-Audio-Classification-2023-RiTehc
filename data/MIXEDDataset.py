@@ -39,11 +39,11 @@ class MIXEDDataset(Dataset):
         label = self._get_audio_sample_label(index)
         audio = torchaudio.load(path, normalize=True)
         resampled = AudioUtil.resample(audio, self.new_samplerate)
-        rechanneled = AudioUtil.rechannel(audio, self.new_channels)
+        # rechanneled = AudioUtil.rechannel(audio, self.new_channels)
         # resized = AudioUtil.pad_trunc(rechanneled, self.max_num_samples)
         # reshifted = AudioUtil.time_shift(resized, self.shift_limit)
-        spectrogram = AudioUtil.generate_spectrogram(rechanneled, self.n_mels, self.n_fft, self.top_db, self.hop_len)
-        spectrogram = AudioUtil.standardize(spectrogram, self.min_val, self.max_val)
+        spectrogram = AudioUtil.generate_spectrogram(resampled, self.n_mels, self.n_fft, self.top_db, self.hop_len)
+        #spectrogram = AudioUtil.standardize(spectrogram, self.min_val, self.max_val)
         #augmented_spectrogram = AudioUtil.spectrogram_augment(spectrogram, self.mask_percent, self.n_freq_masks, self.n_time_masks)
         return spectrogram, label
 
