@@ -6,6 +6,7 @@ import glob
 import json
 import sys
 import pandas as pd
+import numpy as np
 
 sys.path.insert(0, '../utils/')
 
@@ -27,13 +28,13 @@ class WINDOWEDValidationDatasetImages(Dataset):
         full_folder_path = os.path.join(self.data_folder, str(folder))
         window_list = self._get_audio_windows(full_folder_path, num_windows)
 
-        return window_list, label
+        return window_list, np.array(label)
 
     def _get_audio_windows(self, full_folder_path, num_windows):
         window_list = []
         for i in range(num_windows):
             path = os.path.join(full_folder_path, f'W{i + 1}.png')
-            img = Image.open(path)
+            img = Image.open(path).convert('RGB')
             image = self.transform(img)
             window_list.append(image)
             img.close()

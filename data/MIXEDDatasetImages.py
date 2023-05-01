@@ -5,6 +5,7 @@ import os
 import glob
 import json
 import sys
+import numpy as np
 
 sys.path.insert(0, '../utils/')
 
@@ -24,10 +25,10 @@ class MIXEDDatasetImages(Dataset):
         path = self._get_audio_sample_path(index)
         label = self._get_audio_sample_label(index)
 
-        img = Image.open(path)
+        img = Image.open(path).convert('RGB')
         img = self.transform(img)
 
-        return img, label
+        return img, np.array(label)
 
     def _get_audio_sample_path(self, index):
         return os.path.join(self.data_folder, str(index), str(index) + ".png")
