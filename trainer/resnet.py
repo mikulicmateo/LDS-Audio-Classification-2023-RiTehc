@@ -20,13 +20,16 @@ class ResnetModel(nn.Module):
             param.requires_grad = False
 
         self.model.fc = nn.Sequential(
-            nn.Linear(in_features=2048, out_features=512),
-            nn.ReLU()
+            nn.Linear(in_features=2048, out_features=1024),
+            nn.ReLU(),
+            nn.BatchNorm1d(1024),
+            nn.Linear(in_features=1024, out_features=512),
+            nn.ReLU(),
+            nn.BatchNorm1d(512),
         )
 
         self.last_layer = nn.Sequential(
             nn.Linear(in_features=512, out_features=11),
-            # nn.Sigmoid()
         )
 
     def forward(self, x, get_embedding=False):
@@ -192,13 +195,14 @@ if __name__ == '__main__':
 
     model = resnet50(weights=ResNet50_Weights.DEFAULT)
 
+
     my_resnet = ResnetModel(model)
     my_resnet.to(device)
     params_to_optimize = [
         {'params': my_resnet.parameters()}
     ]
 
-    lr = 0.01
+    lr = 1e-6
     optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
     loss_fn = nn.BCEWithLogitsLoss()
 
