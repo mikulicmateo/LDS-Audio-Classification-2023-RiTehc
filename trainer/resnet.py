@@ -12,12 +12,13 @@ from torch.utils.data import DataLoader
 
 class ResnetModel(nn.Module):
 
-    def __init__(self, pretrained_model):
+    def __init__(self, pretrained_model, freeze=True):
         super().__init__()
 
         self.model = pretrained_model
-        for param in self.model.parameters():
-            param.requires_grad = False
+        if freeze:
+            for param in self.model.parameters():
+                param.requires_grad = False
 
         self.model.fc = nn.Sequential(
             nn.Linear(in_features=2048, out_features=1024),
@@ -73,13 +74,56 @@ def create_model_state_dict(model, train_loss, val_loss, optimizer, epoch):
     }
 
     return model_state
+
+
 def save_models(model, train_loss, val_loss, optimizer, epoch, best):
     model_state = create_model_state_dict(model, train_loss, val_loss, optimizer, epoch)
 
     torch.save(model_state, 'last-resnet.pt')
 
     if best:
-        torch.save(model_state, 'best-resnet.pt')
+        torch.save(model_state, 'best-ResNet.pt')
+
+
+def load_model_optimizer(model_path, pretrained_model, freeze, lr):
+    print("LOADING OPTIMIZER")
+    model = ResnetModel(pretrained_model, freeze)
+    model_dict = torch.load(model_path)
+    model.to(device)
+    optimizer_params = [
+        {'params': model.parameters()}
+    ]
+
+    optimizer = torch.optim.AdamW(optimizer_params, lr=lr, weight_decay=1e-05)
+    optimizer.load_state_dict(model_dict['optimizer_state'])
+
+    print(f"LOADED OPTIMIZER, train_loss {model_dict['train_loss']}"
+          + f", val_loss {model_dict['val_loss']}")
+
+    return optimizer
+
+
+def load_model_state(model_path, pretrained_model, freeze):
+    print("LOADING MODEL")
+    model = ResnetModel(pretrained_model, freeze)
+    model_dict = torch.load(model_path)
+    model.load_state_dict(model_dict['model_state'])
+
+    print(f"LOADED MODEL, epoch {model_dict['epoch']}"
+          + f", time {model_dict['time']}")
+
+    return model, model_dict['epoch']
+
+
+def load_model_for_further_training(model_path, pretrained_model, freeze, lr, device):
+    model, trained_epochs = load_model_state(model_path, pretrained_model, freeze)
+
+    model.to(device)
+
+    optimizer = load_model_optimizer(model_path, pretrained_model, freeze, lr)
+
+    return model, trained_epochs, optimizer
+
 
 def train_epoch(model, device, dataloader, loss_fn, optimizer):
     model.train()
@@ -106,8 +150,8 @@ def val_epoch(model, device, dataloader, loss_fn):
     model.eval()
     with torch.no_grad():
 
-        out = []
-        label = []
+
+        val_losses = []
         for image_batch, labels in tqdm(dataloader, leave=False):
             labels = labels.to(device)
             for windowed_batch in image_batch:
@@ -123,16 +167,11 @@ def val_epoch(model, device, dataloader, loss_fn):
                 #     print(encoded_data[i][0].cpu().detach().numpy())
                 #     plt.imshow(decoded_data[i][0].cpu().detach().numpy())
                 #     plt.show()
+                loss = loss_fn(predicted_data, labels.float())
+                val_losses.append(loss.detach().cpu().numpy())
 
-                out.append(predicted_data.cpu())
-                label.append(labels.float().cpu())
-
-        out = torch.cat(out)
-        label = torch.cat(label)
         # Evaluate global loss
-        val_loss = loss_fn(out, label)
-
-    return val_loss
+    return np.mean(val_losses)
 
 
 def train(model, train_loader, val_loader, loss_fn, optimizer, device, epochs, val_step, start_epoch=1):
@@ -185,7 +224,9 @@ if __name__ == '__main__':
     VAL_BATCH_SIZE = 1
     EPOCHS = 200
     NUM_WORKERS = 6
-
+    FREEZE_WEIGHTS = False
+    LOAD_MODEL_PATH = "/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/best-resnet.pt"
+    LOAD_MODEL_TO_TRAIN = True
 
     if torch.cuda.is_available():
         device = "cuda"
@@ -194,18 +235,28 @@ if __name__ == '__main__':
     print(f"Using {device}")
 
     model = resnet50(weights=ResNet50_Weights.DEFAULT)
-
-
-    my_resnet = ResnetModel(model)
-    my_resnet.to(device)
-    params_to_optimize = [
-        {'params': my_resnet.parameters()}
-    ]
-
-    lr = 1e-6
-    optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
+    model.to(device)
+    lr = 1e-4
     loss_fn = nn.BCEWithLogitsLoss()
 
+    if LOAD_MODEL_TO_TRAIN:
+        my_resnet, trained_epochs, optim = load_model_for_further_training(
+            LOAD_MODEL_PATH,
+            model,
+            FREEZE_WEIGHTS,
+            lr,
+            device
+        )
+    else:
+        trained_epochs = 0
+        my_resnet = ResnetModel(model)
+        params_to_optimize = [
+            {'params': my_resnet.parameters()}
+        ]
+
+        optim = torch.optim.AdamW(params_to_optimize, lr=lr, weight_decay=1e-05)
+
+    my_resnet.to(device)
     ds = MIXEDDatasetImages(
         ABSOLUTE_PATH_DATA_FOLDER
     )
@@ -217,8 +268,6 @@ if __name__ == '__main__':
         ABSOLUTE_PATH_VAL_DATA_FOLDER,
         FOLDER_FILE_MAPPING_PATH
     )
-
-    trained_epochs=0
 
     test_dataset = torch.utils.data.Subset(vds, range(794))
     val_dataset = torch.utils.data.Subset(vds, range(794, len(vds)))
