@@ -1,0 +1,12 @@
+fastapi
+pillow
+torch
+torchvision
+torchaudio
+python-multipart
+soundfile
+pandas
+annoy
+numpy
+librosa
+matplotlib

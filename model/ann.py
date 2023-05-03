@@ -1,9 +1,12 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, hamming_loss, accuracy_score
+import matplotlib.pyplot as plt
 
 def get_scores(y_true, y_pred, labels):
     print(classification_report(y_true, y_pred, target_names=labels))
+    print("HAMMING_SCORE ------", hamming_loss(y_true, y_pred))
+    print("ACCURACY_SCORE -----",  accuracy_score(y_true, y_pred))
 
 def fc_training_embedding_load(data_path):
     data = pd.read_pickle(data_path)
@@ -45,13 +48,14 @@ def calculate_weights(dists):
     return weights / np.sum(weights)
 
 if __name__ == "__main__":
-    DATA_PATH = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data/embeddings-16x32-encoder.pickle'
-    VAL_DATA_PATH = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data/embeddings-windowed-16x32-encoder.pickle'
+    DATA_PATH = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data/embeddings-512-resnet34.pickle'
+    VAL_DATA_PATH = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data/embeddings-windowed-512-resnet34.pickle'
 
     features, labels = fc_training_embedding_load(DATA_PATH)
 
     val_features, val_labels = fc_validation_embedding_load(VAL_DATA_PATH)
-
+    # val_features = val_features[:800]
+    # val_labels = val_labels[:800]
     classes = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
     """
         FAISS
@@ -79,47 +83,53 @@ if __name__ == "__main__":
     print(features.shape)
     print(val_features.shape)
     # tree = AnnoyANN(features.shape[1])
-    # tree.build(features, labels, number_of_trees=30, metric='euclidean')
-    # tree.save_model('euclidean-encoder-16x32-t30.ann')
-    k = 30
+    # tree.build(features, labels, number_of_trees=30, metric='angular')
+    # tree.save_model('angular-resnet34-256-t30.ann')
+    k = 10
 
-    tree = AnnoyANN(features.shape[1], labels, path='euclidean-encoder-16x32-t30.ann', metric='euclidean', prefault=True)
-    counter = 0
-    y_pred = []
-    for i, val_feature in enumerate(val_features):
-        prediction = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        window_results = []
-        for window in val_feature:
-            query_results, query_distances = tree.query(window, k=k)
+    tree = AnnoyANN(features.shape[1], labels, path='angular-resnet34-256-t30.ann', metric='angular', prefault=True)
 
-            for j in range(len(query_results)):
-                window_results.append([query_results[j], query_distances[j]])
+    for p in range(1, 10):
+        y_pred = []
+        for i, val_feature in enumerate(val_features):
+            sample_prediction = [0 for _ in classes]
+            window_results = []
+            for j, window in enumerate(val_feature):
+                window_prediction = [0 for _ in classes]
+                query_results, query_distances = tree.query(window, k=k)
 
-        sorted_results = sorted(window_results, key=lambda t: t[1])
+                query_results = np.array(query_results)
+                weights = calculate_weights(np.array(query_distances))
+                weighted_results = [1.0 * query_result for weight, query_result in zip(weights, query_results)]
 
-        sorted_results = np.array(sorted_results[:30])
-        weights = calculate_weights(sorted_results[:, 1])
-        weighted_results = weights * sorted_results[:, 0]
-        prediction = np.sum(weighted_results)
-        # print("_-__-_-____-_____")
-        # print(prediction)
-        # print(val_labels[i])
-        # print(np.sum(weighted_results))
-        # print(val_labels[i])
-        # for results, distances in sorted_results:
-        #     weighted_result = [x * function(sorted_results[j][1]) for x in sorted_results[j][0]]
-        #     prediction = np.add(prediction, weighted_result)
+                for result in weighted_results:
+                    window_prediction = np.add(window_prediction, result)
 
-        # prediction /= 10
-        # print(prediction)
-        prediction = [threshold(x, 0.35) for x in prediction]
-        y_pred.append(prediction)
+                window_prediction /= k
+                window_results.append(window_prediction)
+
+                # plt.bar(classes, window_prediction, width=0.9)
+                # plt.title(f"{j+1}. Window, {i+1}. File")
+                # plt.show()
+
+            for result in window_results:
+                sample_prediction = np.add(sample_prediction, result)
+
+            sample_prediction /= len(val_feature)
+            sample_prediction = [threshold(x, float(p)/10.) for x in sample_prediction]
+
+            y_pred.append(sample_prediction)
+
+            # plt.title(f"{i + 1}. File")
+            # plt.bar(classes, sample_prediction, width=0.9)
+            # plt.show()
         #
-        if np.array_equal(np.array(prediction), val_labels[i]):
-            counter += 1
-            # print(val_labels[i])
-            # print(np.array(prediction))
-            # print("---------------------")
-
-    get_scores(val_labels, y_pred, classes)
-    # print(counter / val_features.shape[0])
+        print(f"{float(p)/10}:")
+        get_scores(val_labels, np.array(y_pred), classes)
+        #angular
+        #Best HAMMING_SCORE ------ 0.07625, k=30 p = 0.38, no weights
+        #Best HAMMING_SCORE ------ 0.07579545454545454, k=10, p=0.41, no weights
+        #Best HAMMING_SCORE ------ 0.07625, k=10, p=0.043, weights
+        #Best HAMMING_SCORE ------ 0.07602272727272727, k=30, p=0.013, weights
+        #euclidean
+        #Best HAMMING_SCORE ------ 0.075, k=10, p=0.5, no weights

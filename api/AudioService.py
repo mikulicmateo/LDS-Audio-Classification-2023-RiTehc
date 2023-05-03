@@ -1,11 +1,8 @@
 import io
-import sys
 import soundfile as sf
-from utils.AudioUtil import AudioUtil
+from AudioUtil import AudioUtil
 import matplotlib.pyplot as plt
 import torchaudio
-
-sys.path.insert(0, '../utils/')
 
 
 class AudioService:

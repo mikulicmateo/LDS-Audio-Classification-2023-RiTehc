@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from model.AnnoyANN import AnnoyANN
@@ -15,7 +14,7 @@ class ModelService:
         self.labels = self.fc_training_embedding_labels('data/labels.pickle')
         self.tree = AnnoyANN(self.vector_size, self.labels, path='model/angular-resnet34-256-t30.ann', metric='angular',
                              prefault=True)
-        pretrained = resnet34()
+        pretrained = resnet34(weights=ResNet34_Weights.DEFAULT)
         self.model = self.load_tuned_resnet_state('model/best-resnet-34.pt', pretrained)
         self.model.eval()
         self.transform = torchvision.transforms.ToTensor()
@@ -75,7 +74,7 @@ class ModelService:
 
     def load_tuned_resnet_state(self, model_path, pretrained_model):
         model = TunedResnetModel(pretrained_model, freeze=False, get_embedding=True)
-        model_dict = torch.load(model_path)
+        model_dict = torch.load(model_path, map_location=torch.device('cpu'))
         model.load_state_dict(model_dict['model_state'])
-
+        model.to('cpu')
         return model
