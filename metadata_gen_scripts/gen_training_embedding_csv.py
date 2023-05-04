@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from torchvision.models import resnet50, ResNet50_Weights
+from torchvision.models import resnet50, ResNet50_Weights, resnet34, ResNet34_Weights
 from data.WINDOWEDValidationDatasetImages import WINDOWEDValidationDatasetImages
 from data.MIXEDDatasetImages import MIXEDDatasetImages
 
@@ -17,6 +17,7 @@ from data.MIXEDDataset import MIXEDDataset
 from data.WINDOWEDValidationDataset import WINDOWEDValidationDataset
 from model.Encoder import Encoder
 from model.UNet_original import UNet
+from model.TunedResnetModel import TunedResnetModel
 
 np.set_printoptions(threshold=np.inf)
 class_names = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
@@ -45,11 +46,40 @@ def load_encoder_state(encoder_path):
 
     return encoder
 
+def load_resnet_state(model_path, pretrained_model, device):
+    print("LOADING MODEL")
+    model = TunedResnetModel(pretrained_model, freeze=False, get_embedding=True)
+    model_dict = torch.load(model_path)
+    model.load_state_dict(model_dict['model_state'])
+    model.to(device)
+
+    print(f"LOADED MODEL, epoch {model_dict['epoch']}"
+          + f", time {model_dict['time']}")
+
+    return model
+
 
 def create_data_loader(train_data, batch_size, num_workers, shuffle):
     train_dataloader = DataLoader(train_data, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
     return train_dataloader
 
+def generate_embeddings_resnet(model, device, dataloader, save_path):
+    model.eval()
+    os.chdir(save_path)
+    loop = tqdm(dataloader, leave=False)
+
+    data = []
+    for i, (image_batch, label) in enumerate(loop):
+
+        image_batch = image_batch.to(device)
+        embedding = model(image_batch)
+        label = label.cpu().detach().numpy()[0]
+
+        temp = [embedding.cpu().detach().numpy()[0], [int(l) for l in label]]
+        data.append(temp)
+
+    df = pd.DataFrame(data, columns=["embedding", "label"])
+    df.to_pickle('embeddings-512-resnet34.pickle')
 
 def generate_embeddings_encoder(encoder, device, dataloader, save_path):
     encoder.eval()
@@ -68,6 +98,27 @@ def generate_embeddings_encoder(encoder, device, dataloader, save_path):
 
     df = pd.DataFrame(data, columns=["embedding", "label"])
     df.to_pickle('embeddings-16x32-encoder.pickle')
+
+def generate_windowed_embeddings_resnet(model, device, dataloader, save_path):
+    model.eval()
+    os.chdir(save_path)
+
+    loop = tqdm(dataloader, leave=False)
+
+    data = []
+    for image_batch, label in loop:
+        embeddings = []
+        label = label.cpu().detach().numpy()[0]
+        for windowed_batch in image_batch:
+            windowed_batch = windowed_batch.to(device)
+            embedding = model(windowed_batch)
+
+            embeddings.append(embedding.cpu().detach().numpy()[0])
+
+        data.append([embeddings, [int(l) for l in label]])
+
+    df = pd.DataFrame(data, columns=['embeddings', 'labels'])
+    df.to_pickle('embeddings-windowed-512-resnet34.pickle')
 
 def generate_windowed_embeddings_encoder(encoder, device, dataloader, save_path):
     encoder.eval()
@@ -148,7 +199,7 @@ if __name__ == "__main__":
     # MAX_MIXES = 5
     # MAX_DECIBEL = 105
     # HOP_LEN = 517#296  # width of spec = Total number of samples / hop_length
-    NUM_WORKERS = 4
+    NUM_WORKERS = 10
     # VAL_STEP = 1
     # CHECKPOINT_DATA_COUNT = 25_000
 
@@ -194,10 +245,15 @@ if __name__ == "__main__":
     train_dataloader = create_data_loader(ds, BATCH_SIZE, NUM_WORKERS, False)
     validation_dataloader = create_data_loader(vds, BATCH_SIZE, NUM_WORKERS, False)
     #unet = load_unet_state("/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/trainer/best-unet.pt")
-    encoder = load_encoder_state("/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/best-encoder.pt")
+    # encoder = load_encoder_state("/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/best-encoder.pt")
+    pretrained = resnet34(weights=ResNet34_Weights.DEFAULT)
+    pretrained.to(device)
+    resnet = load_resnet_state("/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/trainer/best-resnet-34.pt", pretrained, device)
     save_path = "/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/data"
     # encoder = resnet50(weights=ResNet50_Weights.DEFAULT)
     # encoder.to(device)
     #generate_embeddings_unet(unet, device, train_dataloader, save_path)
     # generate_embeddings_encoder(encoder, device, train_dataloader, save_path)
-    generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)
+    # generate_windowed_embeddings_encoder(encoder, device, validation_dataloader, save_path)
+    generate_embeddings_resnet(resnet, device, train_dataloader, save_path)
+    generate_windowed_embeddings_resnet(resnet, device,validation_dataloader, save_path)
