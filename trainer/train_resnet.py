@@ -52,6 +52,9 @@ def main():
 
         trainer.train()
 
+        if config_dict["TEST_MODEL"]:
+            trainer.test_model()
+
     resnet = TunedResnetModel(resnet34(weights=ResNet34_Weights.DEFAULT), freeze=False)
     optimizer = torch.optim.AdamW(resnet.parameters(), lr=config_dict["LEARNING_RATE"], weight_decay=1e-05)
 
@@ -61,6 +64,9 @@ def main():
     trainer.start_epoch = model_epoch
 
     trainer.train()
+
+    if config_dict["TEST_MODEL"]:
+        trainer.test_model()
 
 
 if __name__ == '__main__':

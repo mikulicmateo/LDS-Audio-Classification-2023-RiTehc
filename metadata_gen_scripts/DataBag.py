@@ -17,7 +17,6 @@ class DataBag:
         for column in self.annotation_file.columns:
             if column != 'path' and column != 'Unnamed: 0':
                 bag.update({column: self.get_files_for_label(column, self.annotation_file)})
-        print('Created bag for keys: ', bag.keys())
         return bag
 
     def get_bag_item(self, label):

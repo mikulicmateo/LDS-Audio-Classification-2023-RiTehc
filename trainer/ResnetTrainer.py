@@ -12,14 +12,22 @@ def load_resnet(model_path, model, optimizer):
     if torch.cuda.is_available():
         device = "cuda"
     else:
-        device = "cpu"
+        print("cuda not available!")
+        return None, None, None
 
     model.load_state_dict(model_dict['model_state'])
     model.to(device)
     model_epoch = model_dict['epoch']
-    optimizer.load_state_dict(model_dict['optimizer_state'])
+
+    if optimizer is not None:
+        optimizer.load_state_dict(model_dict['optimizer_state'])
 
     return model, optimizer, model_epoch
+
+
+def create_data_loader(data, batch_size, num_workers, shuffle):
+    dataloader = DataLoader(data, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
+    return dataloader
 
 
 class ResNetTrainer:
@@ -42,7 +50,7 @@ class ResNetTrainer:
             shuffle
         )
 
-        self.test_dataloader = self.create_data_loader(test_data, 1, num_workers, shuffle)
+        self.test_dataloader = create_data_loader(test_data, 1, num_workers, shuffle)
 
         self.loss_fn = loss_fn
         self.epochs_to_train = epochs_to_train
@@ -73,10 +81,6 @@ class ResNetTrainer:
         self.set_resnet(resnet)
         self.set_optimizer(optimizer)
 
-    def create_data_loader(self, data, batch_size, num_workers, shuffle):
-        dataloader = DataLoader(data, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
-        return dataloader
-
     def create_random_dataset_with_checkpoints(self, checkpoint_data_count, full_dataset):
         dataset = []
         for i in range((len(full_dataset) // checkpoint_data_count)):
@@ -87,7 +91,7 @@ class ResNetTrainer:
     def create_dataloaders_for_subset_data(self, subsets, batch_size, num_workers, shuffle):
         data_loaders = []
         for subset in subsets:
-            data_loaders.append(self.create_data_loader(subset, batch_size, num_workers, shuffle=shuffle))
+            data_loaders.append(create_data_loader(subset, batch_size, num_workers, shuffle=shuffle))
         return data_loaders
 
     def create_model_state_dict(self, epoch, train_loss, val_loss):
@@ -186,7 +190,7 @@ class ResNetTrainer:
             print(f"Epoch {epoch}:")
 
             for i in range(1, checkpoints_num + 1):
-                train_loss = self.train_epoch(i-1)
+                train_loss = self.train_epoch(i - 1)
                 print(f"Checkpoint {i} Training Loss: {train_loss}")
 
                 if epoch % val_step == 0:

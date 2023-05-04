@@ -1,90 +1,57 @@
-import numpy as np
-import pandas as pd
-from matplotlib import pyplot as plt
-import os
+import copy
 import json
+import os
 
-from DataBag import DataBag
+import numpy as np
+from matplotlib import pyplot as plt
 
-working_dir = os.path.dirname(os.getcwd())
-os.chdir(working_dir)
-DEFAULT_TRAIN_ANNOTATION_FILE = r'IRMAS_Training_Data/training_annotation_file.csv'
-instruments = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
+from structures import instrument_dict as all_instruments_counter
+from structures import instrument_list, genre_list, specific_instrument_counter
+from structures import num_of_companion_instruments_percentage, instrument_percentages_dict
 
-num_of_companion_instruments_percentage = {
-    "tru": [],
-    "gac": [],
-    "sax": [],
-    "cel": [],
-    "flu": [],
-    "gel": [],
-    "vio": [],
-    "cla": [],
-    "pia": [],
-    "org": [],
-    "voi": []
-}
+project_path = os.path.dirname(os.getcwd())
+os.chdir(project_path)
+validation_metadata_path = os.path.join(project_path, "metadata/validation_metadata/Plots")
+default_train_annotation_file = os.path.join(project_path, "metadata/training_metadata/training_annotation_file.csv")
+config_file_path = os.path.join(project_path, "config.json")
+generated_instrument_counter = [0 for _ in range(11)]
+all_instruments_percentage = []
 
-instrument_percentages_dict = {
-    "tru": [[], [], [], []],
-    "gac": [[], [], [], []],
-    "sax": [[], [], [], []],
-    "cel": [[], [], [], []],
-    "flu": [[], [], [], []],
-    "gel": [[], [], [], []],
-    "vio": [[], [], [], []],
-    "cla": [[], [], [], []],
-    "pia": [[], [], [], []],
-    "org": [[], [], [], []],
-    "voi": [[], [], [], []]
-}
+with open(config_file_path, "r") as config_file:
+    config_dict = json.load(config_file)
 
-all_instruments_counter = {
-    "tru": 0,
-    "gac": 0,
-    "sax": 0,
-    "cel": 0,
-    "flu": 0,
-    "gel": 0,
-    "vio": 0,
-    "cla": 0,
-    "pia": 0,
-    "org": 0,
-    "voi": 0
-}
 
-r_specific_instrument_counter = {
-    "tru": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "gac": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "sax": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "cel": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "flu": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "gel": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "vio": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "cla": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "pia": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "org": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()],
-    "voi": [0, all_instruments_counter.copy(), all_instruments_counter.copy(), all_instruments_counter.copy(),
-            all_instruments_counter.copy()]
-}
+def gen_uniform_companion_instruments(instrument_index):
+    probability = []
+    for i in range(11):
+        if i != instrument_index:
+            probability.append(1. / 10.)
+        else:
+            probability.append(0.)
+    return probability
+
+
+def gen_uniform(length):
+    return [1 / length for _ in range(length)]
+
+
+def gen_uniform_companion_num(companion_instruments):
+    probability = []
+    for i in range(companion_instruments + 1):
+        probability.append(1. / companion_instruments)
+
+    for i in range(companion_instruments + 1, len(instrument_list)):
+        probability.append(0.)
+
+    return probability
 
 
 def create_distribution_plot(dictionary, instrument_name, num_of_instruments=0):
-    sum = np.sum(list(dictionary.values()))
+    sum_for_percentages = np.sum(list(dictionary.values()))
 
     for key in dictionary.keys():
         if dictionary[key] != 0:
-            dictionary[key] = dictionary[key] / sum
+            dictionary[key] = dictionary[key] / sum_for_percentages
 
     plt.bar(dictionary.keys(), dictionary.values(), width=0.9)
     if num_of_instruments != 0:
@@ -94,131 +61,235 @@ def create_distribution_plot(dictionary, instrument_name, num_of_instruments=0):
     plt.clf()
 
 
-def save_plots(save_folder_path):
+def save_plots(save_folder_path, max_companion_instruments):
     os.chdir(save_folder_path)
     plt.bar(num_of_companion_instruments_percentage.keys(),
-            r_generated_instrument_counter / np.sum(r_generated_instrument_counter), width=0.9)
+            generated_instrument_counter / np.sum(generated_instrument_counter), width=0.9)
     plt.savefig('generated_all_instruments_count.png')
     plt.clf()
 
-    for instrument in r_specific_instrument_counter.keys():
+    for instrument in specific_instrument_counter.keys():
 
         os.chdir(save_folder_path)
         if not os.path.exists(os.path.join(save_folder_path, instrument)):
             os.makedirs(instrument)
         os.chdir(os.path.join(save_folder_path, instrument))
 
-        for i in range(len(r_specific_instrument_counter[instrument])):
+        for i in range(max_companion_instruments + 1):
             if i == 0:
                 continue
 
-            create_distribution_plot(r_specific_instrument_counter[instrument][i],
+            create_distribution_plot(specific_instrument_counter[instrument][i],
                                      instrument,
                                      num_of_instruments=i + 1)
 
 
-# --------------
-# metadata Loading
-# --------------
-data = pd.read_csv('IRMAS_Validation_Data/Plots/validation_metadata_percentage.csv')
-all_instruments_percentage = np.array(data.iloc[0].to_numpy()[3:], dtype=float)
+def load_dataset_gen_metadata_into_dicts():
+    import pandas as pd
+    val_max_companion_instruments = 4
+    global all_instruments_percentage
+    data = pd.read_csv(os.path.join(validation_metadata_path, 'validation_metadata_percentage.csv'))
+    all_instruments_percentage = np.array(data.iloc[0].to_numpy()[3:], dtype=float)
 
-data = pd.read_csv('IRMAS_Validation_Data/Plots/validation_instrument_mix_ratios_metadata_percentage.csv')
-for i, instrument in enumerate(num_of_companion_instruments_percentage.keys()):
-    num_of_companion_instruments_percentage[instrument] = np.array(data.iloc[i].to_numpy()[2:], dtype=float)
+    data = pd.read_csv(
+        os.path.join(validation_metadata_path, 'validation_instrument_mix_ratios_metadata_percentage.csv')
+    )
+    for i, instrument in enumerate(num_of_companion_instruments_percentage.keys()):
+        num_of_companion_instruments_percentage[instrument] = np.array(data.iloc[i].to_numpy()[2:], dtype=float)
 
-for instrument in instruments:
-    data = pd.read_csv(f'IRMAS_Validation_Data/Plots/{instrument}/validation_{instrument}_metadata_percentage.csv')
-    for i in range(len(instrument_percentages_dict[instrument])):
-        instrument_percentages_dict[instrument][i] = np.array(data.iloc[i].to_numpy()[3:], dtype=float)
+    for instrument in instrument_list:
+        data = pd.read_csv(
+            os.path.join(validation_metadata_path, f'{instrument}/validation_{instrument}_metadata_percentage.csv')
+        )
+        for i in range(val_max_companion_instruments):
+            instrument_percentages_dict[instrument][i] = np.array(data.iloc[i].to_numpy()[3:], dtype=float)
 
-# --------------
-# Logic
-# --------------
-samples_amount = 10_000
-num_of_val_files = 2874
-num_of_val_instruments = 4917
-mixed_dataset_instrument_amount = num_of_val_instruments / num_of_val_files * samples_amount
-total_instrument_count = []
+    return val_max_companion_instruments
 
-data_bag = DataBag(DEFAULT_TRAIN_ANNOTATION_FILE)
+def load_dataset_uniform_gen_into_dicts(max_companion_instruments):
+    global all_instruments_percentage
+    all_instruments_percentage = gen_uniform(len(instrument_list))
 
-# for instrument_percentage in all_instruments_percentage:
-# add 1 to samples because of rounding error
-# total_instrument_count.append(int(np.round((mixed_dataset_instrument_amount+1) * instrument_percentage)))
+    for instrument in instrument_list:
+        num_of_companion_instruments_percentage[instrument] = gen_uniform_companion_num(
+            max_companion_instruments)
 
-# r_original_count = total_instrument_count.copy()
-# r_generated_instrument_counter = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    for instrument_index, instrument in enumerate(instrument_list):
+        for i in range(max_companion_instruments):
+            instrument_percentages_dict[instrument][i] = gen_uniform_companion_instruments(instrument_index)
 
-samples_count = 0
-mixed_dataset_samples = {
-    'samples': []
-}
+    return max_companion_instruments
 
-# while np.sum(total_instrument_count) >= 0:
-while samples_count < samples_amount:
-    dataset_sample = {
-        'label': all_instruments_counter.copy(),
-        'paths': []
-    }
-    samples_count += 1
+def generate_dataset(mixed_dataset_samples, data_bag, samples_amount):
+    samples_count = 0
 
-    instrument_index = np.random.choice(np.arange(11), p=all_instruments_percentage)
-    instrument = instruments[instrument_index]
+    while samples_count < samples_amount:
+        dataset_sample = {
+            'label': all_instruments_counter.copy(),
+            'paths': []
+        }
+        samples_count += 1
 
-    dataset_sample['paths'].append(data_bag.get_bag_item(instrument))
-    dataset_sample['label'][instrument] = 1
+        instrument_index = np.random.choice(np.arange(len(instrument_list)), p=all_instruments_percentage)
+        instrument = instrument_list[instrument_index]
 
-    # total_instrument_count[instruments.index(instrument)] -= 1
-    # r_generated_instrument_counter[instruments.index(instrument)] += 1
-    num_of_companion_instruments = np.random.choice(np.arange(11),
-                                                    p=num_of_companion_instruments_percentage[instrument])
+        generated_instrument_counter[instrument_index] += 1
 
-    if num_of_companion_instruments == 0:
+        dataset_sample['paths'].append(data_bag.get_bag_item(instrument))
+        dataset_sample['label'][instrument] = 1
+
+        num_of_companion_instruments = np.random.choice(np.arange(len(instrument_list)),
+                                                        p=num_of_companion_instruments_percentage[instrument])
+
+        if num_of_companion_instruments == 0:
+            mixed_dataset_samples['samples'].append(dataset_sample)
+            continue
+
+        companion_instruments_indices = np.random.choice(np.arange(len(instrument_list)),
+                                                         num_of_companion_instruments,
+                                                         replace=False,
+                                                         p=instrument_percentages_dict[instrument][
+                                                             num_of_companion_instruments - 1])
+
+        for companion_instrument_index in companion_instruments_indices:
+            companion_instrument = instrument_list[companion_instrument_index]
+
+            dataset_sample['paths'].append(data_bag.get_bag_item(companion_instrument))
+            dataset_sample['label'][companion_instrument] = 1
+
+            specific_instrument_counter[instrument][num_of_companion_instruments][companion_instrument] += 1
+
         mixed_dataset_samples['samples'].append(dataset_sample)
-        # r_specific_instrument_counter[instrument][num_of_companion_instruments] += 1
-        continue
 
-    if np.sum(instrument_percentages_dict[instrument][num_of_companion_instruments - 1]) == 0.0:
-        print(
-            f"{instrument}, {num_of_companion_instruments} | Suma = {np.sum(instrument_percentages_dict[instrument][num_of_companion_instruments])} Nekako prolazi")
+    return mixed_dataset_samples
 
-    companion_instruments_indices = np.random.choice(11,
-                                                     num_of_companion_instruments,
-                                                     replace=False,
-                                                     p=instrument_percentages_dict[instrument][
-                                                         num_of_companion_instruments - 1])
 
-    # companion_instruments = []
-    for companion_instrument_index in companion_instruments_indices:
-        companion_instrument = instruments[companion_instrument_index]
+def generate_genre_valid_dataset(mixed_dataset_samples, data_bag, samples_amount):
+    no_genre_flag = False
+    samples_count = 0
 
-        dataset_sample['paths'].append(data_bag.get_bag_item(companion_instrument))
-        dataset_sample['label'][companion_instrument] = 1
+    while samples_count < samples_amount:
+        if no_genre_flag:
+            samples_count -= 1
+            no_genre_flag = False
 
-        # total_instrument_count[companion_instrument_index] -= 1
-        # r_generated_instrument_counter[companion_instrument_index] += 1
+        dataset_sample = {
+            'genre': "",
+            'label': copy.deepcopy(all_instruments_counter),
+            'paths': []
+        }
+        samples_count += 1
 
-        # r_specific_instrument_counter[instrument][num_of_companion_instruments][companion_instrument] += 1
-        # companion_instruments.append(companion_instrument)
+        instrument_index = np.random.choice(np.arange(11), p=all_instruments_percentage)
+        instrument = instrument_list[instrument_index]
 
-    mixed_dataset_samples['samples'].append(dataset_sample)
+        genre_index = np.random.choice(np.arange(len(genre_list)),
+                                       p=gen_uniform(len(genre_list)))
+        genre = genre_list[genre_index]
 
-# Serializing json
-dataset_json = json.dumps(mixed_dataset_samples, indent=4)
+        while True:
+            path = data_bag.get_bag_item(instrument, genre)
+            if path is None:
+                genre_index = np.random.choice(np.arange(len(genre_list)),
+                                               p=gen_uniform(len(genre_list)))
+                genre = genre_list[genre_index]
+            else:
+                break
 
-# Writing to sample.json
-with open("MIXED_Training_Data/t_dataset.json", "w") as outfile:
-    outfile.write(dataset_json)
+        dataset_sample['genre'] = genre
+        dataset_sample['paths'].append(path)
+        dataset_sample['label'][instrument] = 1
 
-# --------------
-# Results
-# --------------
-# print(f'generated instruments: {r_generated_instrument_counter}')
-# print(f'validation dataset count: {r_original_count}')
-# print(f'total instruments generated: {np.sum(r_generated_instrument_counter)}')
-print(f'total samples generated: {samples_count}')
+        generated_instrument_counter[instrument_list.index(instrument)] += 1
+        num_of_companion_instruments = np.random.choice(np.arange(11),
+                                                        p=num_of_companion_instruments_percentage[instrument])
 
-# Uncomment if you want to save plots
-# save_folder_path = r'/home/mateo/Desktop/Plots/'
-# save_plots(save_folder_path)
+        if num_of_companion_instruments == 0:
+            mixed_dataset_samples['samples'].append(dataset_sample)
+            continue
+
+        companion_instruments_indices = np.random.choice(11,
+                                                         num_of_companion_instruments,
+                                                         replace=False,
+                                                         p=instrument_percentages_dict[instrument][
+                                                             num_of_companion_instruments - 1])
+
+        for companion_instrument_index in companion_instruments_indices:
+            companion_instrument = instrument_list[companion_instrument_index]
+            loop_counter = 0
+            while True:
+                path = data_bag.get_bag_item(companion_instrument, genre)
+                if path is None:
+                    loop_counter += 1
+                    companion_instrument_index = np.random.choice(11, replace=False,
+                                                                  p=instrument_percentages_dict[instrument][
+                                                                      num_of_companion_instruments - 1])
+                    companion_instrument = instrument_list[companion_instrument_index]
+                else:
+                    break
+
+                # if this genre does not have any other instruments
+                # generate new instrument
+                if loop_counter == 11:
+                    no_genre_flag = True
+                    break
+
+            if no_genre_flag:
+                break
+
+            dataset_sample['paths'].append(path)
+            dataset_sample['label'][companion_instrument] = 1
+
+            generated_instrument_counter[companion_instrument_index] += 1
+            specific_instrument_counter[instrument][num_of_companion_instruments][companion_instrument] += 1
+
+        if no_genre_flag:
+            continue
+
+        mixed_dataset_samples['samples'].append(dataset_sample)
+
+    return mixed_dataset_samples
+
+
+def main():
+    samples_amount = config_dict["MIXED_DATA_SAMPLES"]
+    mixed_dataset_samples = {
+        'samples': []
+    }
+
+    if not config_dict["GENERATE_UNIFORM_DATASET"]:
+        max_companion_instruments = load_dataset_gen_metadata_into_dicts()
+    else:
+        max_companion_instruments = load_dataset_uniform_gen_into_dicts(config_dict["MAX_COMPANION_INSTRUMENTS"])
+
+    if config_dict["GENERATE_DATASET_WITH_GENRES"]:
+        from DataBagGenre import DataBagGenre
+        data_bag = DataBagGenre(default_train_annotation_file)
+        mixed_dataset_samples = generate_genre_valid_dataset(mixed_dataset_samples, data_bag, samples_amount)
+    else:
+        from DataBag import DataBag
+        data_bag = DataBag(default_train_annotation_file)
+        mixed_dataset_samples = generate_dataset(mixed_dataset_samples, data_bag, samples_amount)
+
+    # Serializing json
+    dataset_json = json.dumps(mixed_dataset_samples, indent=4)
+
+    # Writing to sample.json
+    with open("MIXED_Training_Data/generated_dataset.json", "w") as outfile:
+        outfile.write(dataset_json)
+
+    # --------------
+    # Results
+    # --------------
+    # print(f'generated instruments: {r_generated_instrument_counter}')
+    # print(f'validation dataset count: {r_original_count}')
+    # print(f'total instruments generated: {np.sum(r_generated_instrument_counter)}')
+    print(f'total samples generated: {samples_amount}')
+
+    # Uncomment if you want to save plots
+    save_folder_path = os.path.join(project_path, "metadata/mixed_dataset_metadata")
+    save_plots(save_folder_path, max_companion_instruments)
+
+
+if __name__ == '__main__':
+    main()
