@@ -186,7 +186,7 @@ class ResNetTrainer:
             print(f"Epoch {epoch}:")
 
             for i in range(1, checkpoints_num + 1):
-                train_loss = self.train_epoch(i)
+                train_loss = self.train_epoch(i-1)
                 print(f"Checkpoint {i} Training Loss: {train_loss}")
 
                 if epoch % val_step == 0:
