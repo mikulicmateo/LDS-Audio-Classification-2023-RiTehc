@@ -1,0 +1,85 @@
+.App-title {
+    font-size: 40px;
+    font-weight: 600;
+    background-image: linear-gradient(to left, #553c9a, #b393d3);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    text-align: center;
+}
+
+.file-div {
+    display: "flex";
+    align-items: "center";
+    justify-content: "center";
+}
+
+.chart-window {
+    text-align: center;
+    display: inline-block;
+    margin-top: 2%;
+    margin-left: 2%;
+    margin-right: 2%;
+    margin-bottom: 2%;
+    border-radius: 25px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 1%;
+}
+
+.window-container {
+    margin: auto;
+    text-align: center;
+}
+
+.final-container {
+    margin: auto;
+    border-radius: 25px;
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 2%;
+}
+
+.App-body {
+    display: "flex";
+    align-items: "center";
+    justify-content: "center";
+}
+
+.paragraph1 {
+    font-size: 20px;
+    font-weight: 600;
+    background-image: linear-gradient(to left, #553c9a, #b393d3);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    text-align: center;
+}
+
+.paragraph2 {
+    font-size: 14px;
+    font-weight: 600;
+    background-image: linear-gradient(to left, #553c9a, #b393d3);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+    text-align: center;
+}
+
+.paragraph3 {
+    padding-left: 1%;
+    font-size: 17px;
+    font-weight: 600;
+    font-style: italic;
+    background-image: linear-gradient(to left, #b393d3, #553c9a);
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+}
+
+.App-body {
+    background: rgb(238,174,202);
+    background: linear-gradient(90deg, rgba(238,174,202,0.5) 0%, rgba(148,187,233,0.5) 100%);
+}
+
+.wrapie {
+    padding-top: 1%;
+}

@@ -26,6 +26,12 @@ class ModelService:
         predictions_dict = dict(zip(self.class_names, final_predictions))
         return predictions_dict
 
+    def classify_audio_window_probabilities(self, spectrograms):
+        embeddings = self.get_embeddings(spectrograms)
+        window_predictions = self.get_window_prediction(embeddings)
+        window_predictions_dict = [dict(zip(self.class_names, prediction)) for prediction in window_predictions]
+        return window_predictions_dict
+
     def get_embeddings(self, spectrograms):
         embeddings = []
         for spectrogram in spectrograms:
@@ -65,6 +71,24 @@ class ModelService:
         sample_prediction /= len(vectors)
         sample_prediction = [1 if x > threshold_p else 0 for x in sample_prediction]
         return sample_prediction
+
+    def get_window_prediction(self, vectors, k=10):
+        window_results = []
+        for j, window in enumerate(vectors):
+            window_prediction = [0 for _ in self.class_names]
+            query_results, query_distances = self.tree.query(window, k=k)
+
+            query_results = np.array(query_results)
+            weights = self.calculate_weights(np.array(query_distances))
+            weighted_results = [1.0 * query_result for weight, query_result in zip(weights, query_results)]
+
+            for result in weighted_results:
+                window_prediction = np.add(window_prediction, result)
+
+            window_prediction /= k
+            window_results.append(window_prediction)
+
+        return window_results
 
     def calculate_weights(self, dists):
         dists[dists == 0.0] = 0.00001  # division by 0 handle for floats
