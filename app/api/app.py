@@ -10,7 +10,7 @@ import uvicorn
 
 app = FastAPI(
     title="RiTehc model api - LDS 2023",
-    description="This app servers as api to classification model of RiTehc team for Lumen Data Science 2023. "
+    description="This app serves as api to classification model of RiTehc team for Lumen Data Science 2023. "
                 "competition",
     version="1.0.0"
 )

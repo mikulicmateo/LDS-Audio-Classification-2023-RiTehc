@@ -59,12 +59,11 @@ def load_val_data_to_dicts():
                 for companion_instrument in instruments:
                     companion_instrument_name = companion_instrument.strip()
                     if len(instruments) == 1:
-                        specific_instrument_counter[instrument_name][num_of_instruments - 1] += 1
+                        specific_instrument_counter[instrument_name][num_of_instruments - 1][instrument_name] += 1
                     else:
                         if instrument == companion_instrument:
                             continue
-                        specific_instrument_counter[instrument_name][num_of_instruments - 1][
-                            companion_instrument_name] += 1
+                        specific_instrument_counter[instrument_name][num_of_instruments - 1][companion_instrument_name] += 1
 
 
 def gen_instrument_mix_ratios_csv():

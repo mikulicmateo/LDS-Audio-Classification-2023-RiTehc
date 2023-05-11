@@ -14,7 +14,7 @@ from ResnetTrainer import load_resnet
 def main():
     project_path = os.path.dirname(os.getcwd())
     config_file_path = os.path.join(project_path, "config.json")
-    mixed_dataset_path = os.path.join(project_path, "MIXED_Training_Data")
+    mixed_dataset_path = os.path.join(project_path, "MIXED_Uniform_Training_Data")
     windowed_validation_dataset_path = os.path.join(project_path, "WINDOWED_Validation_Data")
     folder_file_mapping_path = os.path.join(windowed_validation_dataset_path, 'folder_file_mapping.csv')
     resnet_path = os.path.join(project_path, "model/best-ResNet.pt")

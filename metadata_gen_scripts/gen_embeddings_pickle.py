@@ -9,6 +9,7 @@ from tqdm import tqdm
 from data.MIXEDDatasetImages import MIXEDDatasetImages
 from data.WINDOWEDValidationDatasetImages import WINDOWEDValidationDatasetImages
 from trainer.ResnetTrainer import load_resnet, create_data_loader
+from model.TunedResnetModel import TunedResnetModel
 
 
 def generate_embeddings_resnet(model, device, dataloader, save_path):
@@ -80,10 +81,10 @@ def main():
 
     train_dataloader = create_data_loader(ds, 1, config_dict["NUM_WORKERS"], False)
     validation_dataloader = create_data_loader(vds, 1, config_dict["NUM_WORKERS"], False)
-    pretrained = resnet34(weights=ResNet34_Weights.DEFAULT)
+    pretrained = TunedResnetModel(resnet34(weights=ResNet34_Weights.DEFAULT), get_embedding=True)
     resnet, _, _ = load_resnet(resnet_path, pretrained, None)
 
-    generate_embeddings_resnet(resnet, device, train_dataloader, save_path)
+    # generate_embeddings_resnet(resnet, device, train_dataloader, save_path)
     generate_windowed_embeddings_resnet(resnet, device, validation_dataloader, save_path)
 
 

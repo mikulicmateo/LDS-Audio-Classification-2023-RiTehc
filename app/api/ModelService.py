@@ -11,11 +11,11 @@ from PIL import Image
 class ModelService:
     def __init__(self, vector_size=256):
         self.vector_size = vector_size
-        self.labels = self.fc_training_embedding_labels('data/labels.pickle')
+        self.labels = self.fc_training_embedding_labels('data/labels-256-resnet34.pickle')
         self.tree = AnnoyANN(self.vector_size, self.labels, path='model/angular-resnet34-256-t30.ann', metric='angular',
                              prefault=True)
         pretrained = resnet34(weights=ResNet34_Weights.DEFAULT)
-        self.model = self.load_tuned_resnet_state('model/best-resnet-34.pt', pretrained)
+        self.model = self.load_tuned_resnet_state('model/best-ResNet.pt', pretrained)
         self.model.eval()
         self.transform = torchvision.transforms.ToTensor()
         self.class_names = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
@@ -48,10 +48,9 @@ class ModelService:
 
         return labels
 
-    def get_prediction(self, vectors, k=10, threshold_p=0.5):
+    def get_prediction(self, vectors, k=30, threshold_p=0.9):
         sample_prediction = [0 for _ in self.class_names]
-        window_results = []
-        for j, window in enumerate(vectors):
+        for window in vectors:
             window_prediction = [0 for _ in self.class_names]
             query_results, query_distances = self.tree.query(window, k=k)
 
@@ -63,16 +62,14 @@ class ModelService:
                 window_prediction = np.add(window_prediction, result)
 
             window_prediction /= k
-            window_results.append(window_prediction)
+            window_results = [1 if x >= threshold_p else 0 for x in window_prediction]
+            sample_prediction = np.add(sample_prediction, window_results)
 
-        for result in window_results:
-            sample_prediction = np.add(sample_prediction, result)
+        sample_prediction = [1 if x >= 1 else 0 for x in sample_prediction]
 
-        sample_prediction /= len(vectors)
-        sample_prediction = [1 if x > threshold_p else 0 for x in sample_prediction]
         return sample_prediction
 
-    def get_window_prediction(self, vectors, k=10):
+    def get_window_prediction(self, vectors, k=30):
         window_results = []
         for j, window in enumerate(vectors):
             window_prediction = [0 for _ in self.class_names]
