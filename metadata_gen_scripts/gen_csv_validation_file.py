@@ -1,25 +1,14 @@
 import os
 import pandas as pd
+from structures import instrument_dict, instrument_list
 
-current_dir = os.getcwd()
-validation_dataset_path = r'.../IRMAS_Validation_Data'
+project_path = os.path.dirname(os.getcwd())
+validation_dataset_path = os.path.join(project_path, "IRMAS_Validation_Data")
+
+columns = ['path']
+columns.extend(instrument_list)
+
 os.chdir(validation_dataset_path)
-
-columns = ['path', 'tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
-type = {
-    "tru": 0,
-    "gac": 0,
-    "sax": 0,
-    "cel": 0,
-    "flu": 0,
-    "gel": 0,
-    "vio": 0,
-    "cla": 0,
-    "pia": 0,
-    "org": 0,
-    "voi": 0
-}
-
 files = os.listdir(os.getcwd())
 files.sort()
 
@@ -37,24 +26,26 @@ for i in range(0, len(files), 2):
         lines = f.readlines()
 
     for line in lines:
-        type.update({line[0:3]: 1})
+        instrument_dict.update({line[0:3]: 1})
 
-    data.append([os.path.join('IRMAS_Validation_Data', wav_file), 
-                  type.get("tru"), 
-                  type.get("gac"), 
-                  type.get("sax"), 
-                  type.get("cel"), 
-                  type.get("flu"), 
-                  type.get("gel"), 
-                  type.get("vio"),
-                  type.get("cla"), 
-                  type.get("pia"), 
-                  type.get("org"), 
-                  type.get("voi")])
+    data.append([os.path.join('IRMAS_Validation_Data', wav_file),
+                 instrument_dict.get("tru"),
+                 instrument_dict.get("gac"),
+                 instrument_dict.get("sax"),
+                 instrument_dict.get("cel"),
+                 instrument_dict.get("flu"),
+                 instrument_dict.get("gel"),
+                 instrument_dict.get("vio"),
+                 instrument_dict.get("cla"),
+                 instrument_dict.get("pia"),
+                 instrument_dict.get("org"),
+                 instrument_dict.get("voi")])
     
     for line in lines:
-        type.update({line[0:3]: 0})
-    
+        instrument_dict.update({line[0:3]: 0})
 
-os.chdir(os.path.join(current_dir, 'IRMAS_Validation_Data'))
-pd.DataFrame(data, columns=columns).to_csv('validation_annotation_file.csv')
+
+save_path = os.path.join(project_path, "metadata/validation_metadata")
+pd.DataFrame(data, columns=columns).to_csv(
+    os.path.join(save_path, 'validation_annotation_file.csv')
+)

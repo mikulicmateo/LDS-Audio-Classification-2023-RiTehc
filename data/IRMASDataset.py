@@ -1,9 +1,10 @@
-from torch.utils.data import Dataset
+import os
+import random
+import sys
+
 import pandas as pd
 import torchaudio
-import random
-import os
-import sys
+from torch.utils.data import Dataset
 
 from utils.AudioUtil import AudioUtil
 
@@ -74,63 +75,3 @@ class IRMASDataset(Dataset):
             signal, sr = torchaudio.load(audio_sample_path, normalize=True)
             audio = (audio[0] + signal, audio[1])
         return audio
-
-
-# Check if data is loaded properly.
-if __name__ == "__main__":
-    ANNOTATIONS_FILE = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/IRMAS_Training_Data/training_annotation_file.csv'
-    PROJECT_DIR = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc'
-    NEW_SAMPLERATE = 44100  # TODO
-    NEW_CHANNELS = 1
-    MAX_NUM_SAMPLES = 132300  # TODO
-    SHIFT_PERCENT = 0.1
-    N_MELS = 82  # height of spec
-    N_FFT = 1024
-    MAX_MASK_PERCENT = 0.1
-    N_FREQ_MASKS = 2
-    N_TIME_MASKS = 2
-    MAX_MIXES = 5
-    MAX_DECIBEL = 105
-    HOP_LEN = None  # width of spec = Total number of samples / hop_length
-
-    # TODO
-    # if torch.cuda.is_available():
-    #     device = 'cuda'
-    # else:
-    #     device = 'cpu'
-    #
-    # print(f'Using device {device}')
-
-    ds = IRMASDataset(
-        ANNOTATIONS_FILE,
-        PROJECT_DIR,
-        NEW_SAMPLERATE,
-        NEW_CHANNELS,
-        MAX_NUM_SAMPLES,
-        SHIFT_PERCENT,
-        N_MELS,
-        N_FFT,
-        MAX_MASK_PERCENT,
-        N_FREQ_MASKS,
-        N_TIME_MASKS,
-        MAX_MIXES,
-        MAX_DECIBEL,
-        HOP_LEN
-    )
-
-    print(f'There are {len(ds)} samples')
-    signal, label = ds[0]
-    class_names = ['tru', 'gac', 'sax', 'cel', 'flu', 'gel', 'vio', 'cla', 'pia', 'org', 'voi']
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    indexes = np.where(np.array(label) == 1)[0]
-    title = [class_names[i] for i in indexes]
-    plt.imshow(signal[0])
-    plt.title(title)
-    plt.show()
-    # plt.imshow(signal[1])
-    # plt.show()
-
-    # a = 1

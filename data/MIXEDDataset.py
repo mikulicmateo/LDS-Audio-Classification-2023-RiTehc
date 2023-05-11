@@ -58,7 +58,7 @@ class MIXEDDataset(Dataset):
 
 
 if __name__ == "__main__":
-    ABSOLUTE_PATH_DATA_FOLDER = '/home/mateo/Lumen-data-science/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
+    ABSOLUTE_PATH_DATA_FOLDER = '/home/dominik/Work/Lumen Datascience/LDS-Audio-Classification-2023-RiTehc/MIXED_Training_Data'
     NEW_SAMPLERATE = 22050  # TODO
     NEW_CHANNELS = 1
     MAX_NUM_SAMPLES = 66150  # TODO
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     #plt.imsave('dada.png', signal[0])
     print(min(signal[0]))
     print(max(signal[0]))
-
+    print(np.min(signal[0].numpy()))
     plt.imshow(signal[0])
     plt.title(title)
     plt.show()

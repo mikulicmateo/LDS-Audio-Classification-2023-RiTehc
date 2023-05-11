@@ -1,15 +1,13 @@
 import io
-import sys
 import soundfile as sf
-from utils.AudioUtil import AudioUtil
+from AudioUtil import AudioUtil
+import matplotlib.pyplot as plt
 import torchaudio
-
-sys.path.insert(0, '../utils/')
 
 
 class AudioService:
 
-    def __init__(self, spec_window_hop=517, spec_n_mels=64, spec_n_fft=1024, spec_max_db=105, new_channels=1,
+    def __init__(self, spec_window_hop=296, spec_n_mels=224, spec_n_fft=1024, spec_max_db=80, new_channels=1,
                  new_samplerate=22050, max_num_samples=66150):
         self.spec_hop_len = spec_window_hop
         self.new_channels = new_channels
@@ -31,7 +29,6 @@ class AudioService:
 
         resampled = AudioUtil.resample(audio, self.new_samplerate)
         rechanneled = AudioUtil.rechannel(resampled, self.new_channels)
-        # resized = AudioUtil.pad_trunc(rechanneled, self.max_num_samples)
         spectrogram = AudioUtil.generate_spectrogram(rechanneled, self.spec_n_mels, self.spec_n_fft, self.spec_top_db,
                                                      self.spec_hop_len)
         return spectrogram
@@ -39,5 +36,11 @@ class AudioService:
     def get_spectrograms_from_stream(self, stream, sample_rate):
         spectrograms = []
         for block in stream:
-            spectrograms.append(self.preprocess_audio(block, sample_rate))
+            spec_file = self.preprocess_audio(block, sample_rate)
+            spectrograms.append(self.get_spectrogram_image(spec_file))
         return spectrograms
+
+    def get_spectrogram_image(self, spectrogram):
+        temp_png = io.BytesIO()
+        plt.imsave(temp_png, spectrogram[0], format='png')
+        return temp_png
